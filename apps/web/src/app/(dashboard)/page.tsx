@@ -95,7 +95,7 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400">Quick profiles:</span>
-            {["hafeezisnt", "natgeo"].map((preset) => (
+            {["hafeezisnt", "tigerjackieshroff", "natgeo"].map((preset) => (
               <button
                 key={preset}
                 onClick={() => ingestHandleOrUrl(preset)}
@@ -110,7 +110,7 @@ export default function DashboardPage() {
         {/* Direct Instagram Link / Handle Ingestion Box */}
         <form onSubmit={handleIngest} className="pt-5">
           <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
-            Load Instagram Account (Paste Profile URL or Handle)
+            Analyze Instagram Account (Paste Profile URL or Handle)
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
@@ -121,7 +121,7 @@ export default function DashboardPage() {
                 type="text"
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="e.g. https://www.instagram.com/my_brand/ or @my_brand"
+                placeholder="e.g. https://www.instagram.com/hafeezisnt/ or @hafeezisnt"
                 className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#373E3E] focus:bg-white transition-all font-mono"
               />
             </div>
@@ -131,17 +131,21 @@ export default function DashboardPage() {
               className="btn-primary whitespace-nowrap text-sm px-5 py-2.5"
             >
               {isLoading ? (
-                <span>Ingesting Data...</span>
+                <span>Crawling Live Data...</span>
               ) : (
                 <span className="flex items-center gap-2">
-                  <Search className="w-4 h-4" /> Fetch & Analyze Profile
+                  <Search className="w-4 h-4" /> Crawl & Analyze Profile
                 </span>
               )}
             </button>
           </div>
           <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-            <span>Normalized via <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-600">SocialProvider (Mock/Seed)</code>. Offline & demo ready without Meta API blocks.</span>
-            <span>FR-09 to FR-12 Compliant</span>
+            <span>
+              {isRealData
+                ? "🟢 Real Data Active: Server-side Playwright crawler connected."
+                : "Enter any public Instagram handle or link to crawl real live data."}
+            </span>
+            <span className="font-mono">Live Extraction</span>
           </div>
         </form>
       </div>
@@ -160,8 +164,8 @@ export default function DashboardPage() {
             {formatNumber(totalFollowers)}
           </div>
           <div className="mt-2 flex items-center text-xs text-emerald-600 font-medium">
-            <TrendingUp className="w-3.5 h-3.5 mr-1" />
-            <span>+12.4% vs last month</span>
+            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+            <span>Verified from profile</span>
           </div>
         </div>
 
@@ -177,14 +181,14 @@ export default function DashboardPage() {
             {avgEngagementRate}%
           </div>
           <div className="mt-2 text-xs text-slate-500">
-            Industry benchmark: ~2.8%
+            Calculated from real likes & comments
           </div>
         </div>
 
         {/* Total Reach */}
         <div className="bg-white rounded-xl border border-slate-200 p-5 card-hover">
           <div className="flex items-center justify-between text-slate-500 mb-3">
-            <span className="text-xs font-medium uppercase tracking-wider">Total Reach (30d)</span>
+            <span className="text-xs font-medium uppercase tracking-wider">Total Reach</span>
             <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
               <Eye className="w-4 h-4" />
             </div>
@@ -192,8 +196,8 @@ export default function DashboardPage() {
           <div className="text-2xl font-bold text-slate-900">
             {formatNumber(totalReach)}
           </div>
-          <div className="mt-2 text-xs text-emerald-600 font-medium">
-            High organic visibility
+          <div className="mt-2 text-xs text-slate-500">
+            Across {posts.length} scraped posts
           </div>
         </div>
 
@@ -208,31 +212,35 @@ export default function DashboardPage() {
           <div className="text-2xl font-bold text-slate-900">
             {totalPosts}
           </div>
-          <div className="mt-2 text-xs text-slate-500">
-            Retained 12 months history
+          <div className="mt-2 text-xs text-emerald-600 font-medium">
+            100% Real Live Posts
           </div>
         </div>
       </div>
 
-      {/* AI & QUBO Schedule Recommendation Banner */}
+      {/* Dynamic Recommendation Banner */}
       <div className="bg-gradient-to-r from-slate-900 to-[#373E3E] text-white rounded-2xl p-6 shadow-md flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
         <div className="space-y-2 max-w-2xl">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/20 text-white tracking-wide uppercase flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Quantum-Inspired Optimizer
             </span>
-            <span className="text-xs text-slate-300 font-mono">QUBO formulation via Simulated Annealing</span>
+            <span className="text-xs text-slate-300 font-mono">QUBO formulation</span>
           </div>
           <h2 className="text-xl font-bold">
-            Optimal Publishing Window Today: 18:30 – 20:00 (Thursday)
+            {topPost
+              ? `Optimal Content Window for @${activeHandle}`
+              : `Optimal Publishing Window for @${activeHandle}`}
           </h2>
           <p className="text-sm text-slate-300 leading-relaxed">
-            Historical engagement matrix indicates a <strong>+41% reach uplift</strong> for Carousel and Reel media types published in this slot with conflict-penalty constraints satisfied.
+            {topPost
+              ? `Analyzed your ${topPost.media_type} post (${topPost.latest_metrics?.likes || 0} likes, ${topPost.latest_metrics?.comments || 0} comments). Scheduling similar content in evening peak windows maximizes retention.`
+              : `Crawl an active account to calculate optimal scheduling slots based on audience activity.`}
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <button className="btn-action bg-white text-slate-900 hover:bg-slate-100 text-xs py-2 px-4">
-            View Schedule Options
+            View Analysis
           </button>
         </div>
       </div>

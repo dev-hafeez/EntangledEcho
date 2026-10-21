@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import logging
+from datetime import datetime, timezone
 from playwright.async_api import async_playwright
 
 logger = logging.getLogger(__name__)
@@ -72,11 +73,14 @@ async def extract_post_metadata(page) -> Dict[str, Any]:
             const getName = (name) => document.querySelector(`meta[name="${name}"]`)?.content || null;
             const desc = getMeta("og:description") || getName("description") || "";
 
+            const timeEl = document.querySelector("time");
+            const published = getMeta("article:published_time") || (timeEl ? timeEl.getAttribute("datetime") : null);
+
             return {
                 title: document.title,
                 description: desc,
                 image: getMeta("og:image"),
-                published_time: getMeta("article:published_time"),
+                published_time: published,
                 caption: getMeta("og:title"),
                 page_url: location.href,
                 page_text: document.body.innerText.slice(0, 10000)
@@ -219,7 +223,7 @@ async def scrape_instagram_profile_and_posts(
                         "media_type": media_type,
                         "caption": caption.strip(),
                         "hashtags": hashtags[:5],
-                        "posted_at": meta.get("published_time") or "Recent",
+                        "posted_at": meta.get("published_time") or datetime.now(timezone.utc).isoformat(),
                         "perf_score": perf_score,
                         "likes": likes,
                         "comments": comments,

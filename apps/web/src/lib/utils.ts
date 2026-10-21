@@ -15,8 +15,12 @@ export function formatNumber(num: number): string {
   return num.toLocaleString();
 }
 
-export function formatDate(dateString: string | Date): string {
+export function formatDate(dateString: string | Date | undefined | null): string {
+  if (!dateString) return "Recent";
   const d = new Date(dateString);
+  if (isNaN(d.getTime())) {
+    return typeof dateString === "string" ? dateString : "Recent";
+  }
   return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",

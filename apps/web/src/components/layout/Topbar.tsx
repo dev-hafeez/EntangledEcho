@@ -101,23 +101,18 @@ export function Topbar({
             aria-label="Notifications"
           >
             <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-pink-500 rounded-full ring-2 ring-white"></span>
           </button>
 
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl p-3 z-50 text-xs">
               <div className="font-semibold text-slate-800 pb-2 border-b border-slate-100 flex items-center justify-between">
-                <span>Recent Notifications</span>
-                <span className="text-[10px] text-slate-400">3 unread</span>
+                <span>System Activity</span>
+                <span className="text-[10px] text-emerald-600 font-mono">Live</span>
               </div>
               <div className="divide-y divide-slate-100">
                 <div className="py-2.5 space-y-0.5">
-                  <div className="font-medium text-slate-800">Optimal Slot Detected</div>
-                  <div className="text-slate-500">Peak engagement window today at 19:00 (+38% reach predicted).</div>
-                </div>
-                <div className="py-2.5 space-y-0.5">
-                  <div className="font-medium text-slate-800">Analytics Sync Complete</div>
-                  <div className="text-slate-500">24 historical posts normalized and scored.</div>
+                  <div className="font-medium text-slate-800">Active Profile Loaded</div>
+                  <div className="text-slate-500">Connected to @{activeHandle} via server-side scraper.</div>
                 </div>
               </div>
             </div>
@@ -131,7 +126,7 @@ export function Topbar({
           </div>
           <div className="hidden lg:block text-left">
             <div className="text-xs font-semibold text-slate-800 leading-none">Abdul Hafeez</div>
-            <div className="text-[10px] text-slate-400 mt-0.5">FYP Demo</div>
+            <div className="text-[10px] text-slate-400 mt-0.5">Entangled Echo</div>
           </div>
         </div>
       </div>

@@ -16,12 +16,19 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
+interface NavItem {
+  name: string;
+  href: string;
+  icon: any;
+  badge?: number;
+}
+
+const navItems: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Recommendations", href: "/recommendations", icon: Sparkles },
   { name: "Content Calendar", href: "/calendar", icon: CalendarDays },
-  { name: "Notifications", href: "/notifications", icon: Bell, badge: 3 },
+  { name: "Notifications", href: "/notifications", icon: Bell },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
