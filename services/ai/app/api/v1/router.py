@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
@@ -170,7 +171,9 @@ async def scrape_instagram_endpoint(req: ScrapeInstagramRequest):
     if not req.username:
         raise HTTPException(status_code=400, detail="Username is required")
 
-    clean_handle = req.username.strip().lstrip("@")
+    raw_name = req.username.strip().lstrip("@")
+    clean_handle = re.sub(r'^(?:https?:\/\/)?(?:www\.)?instagram\.com\/', '', raw_name, flags=re.I)
+    clean_handle = clean_handle.split('?')[0].split('#')[0].strip('/')
 
     # 1. Check database cache first if not forced
     if not req.force_refresh:

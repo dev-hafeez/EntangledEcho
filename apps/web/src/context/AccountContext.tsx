@@ -134,6 +134,11 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           // Trigger automatic niche detection via Gemini AI if new
           if (accInfo.niche_info) {
             setNicheInfo(accInfo.niche_info);
+            if (typeof window !== "undefined") {
+              try {
+                localStorage.setItem("ee_niche_info", JSON.stringify(accInfo.niche_info));
+              } catch (e) {}
+            }
           } else {
             detectNicheForAccount(realAccount, formattedPosts);
           }
@@ -177,7 +182,16 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           setIsLoading(false);
           setIsSyncingLatest(false);
           setLastSyncedAt(new Date().toLocaleTimeString());
-          detectNicheForAccount(emptyAccount, []);
+          if (data.account?.niche_info) {
+            setNicheInfo(data.account.niche_info);
+            if (typeof window !== "undefined") {
+              try {
+                localStorage.setItem("ee_niche_info", JSON.stringify(data.account.niche_info));
+              } catch (e) {}
+            }
+          } else {
+            detectNicheForAccount(emptyAccount, []);
+          }
           return;
         }
       }
@@ -261,7 +275,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
       if (cachedNiche) {
         try {
-          setNicheInfo(JSON.parse(cachedNiche));
+          const parsed = JSON.parse(cachedNiche);
+          if (!savedHandle || !parsed.handle || parsed.handle.toLowerCase() === savedHandle.toLowerCase()) {
+            setNicheInfo(parsed);
+          }
         } catch (e) {
           // ignore
         }
