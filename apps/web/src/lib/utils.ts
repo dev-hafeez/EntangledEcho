@@ -27,3 +27,17 @@ export function formatDate(dateString: string | Date | undefined | null): string
     year: "numeric",
   });
 }
+
+export function extractHandleFromInput(input: string): { handle: string; detectedPlatform: "instagram" | "facebook" } {
+  if (!input) return { handle: "", detectedPlatform: "instagram" };
+  let clean = input.trim();
+  let detectedPlatform: "instagram" | "facebook" = "instagram";
+  if (/facebook\.com/i.test(clean)) {
+    detectedPlatform = "facebook";
+  }
+  clean = clean.replace(/^(?:https?:\/\/)?(?:www\.)?instagram\.com\//i, "");
+  clean = clean.replace(/^(?:https?:\/\/)?(?:www\.)?facebook\.com\//i, "");
+  clean = clean.split("?")[0].split("#")[0].replace(/\/+$/, "").replace(/^@+/, "");
+  return { handle: clean.trim(), detectedPlatform };
+}
+

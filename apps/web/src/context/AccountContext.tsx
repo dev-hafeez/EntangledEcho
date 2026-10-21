@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { SocialAccount, Post, Platform } from "@/types";
-import { extractHandleFromInput, generateRealisticPostsForHandle } from "@/lib/providers/mock";
+import { extractHandleFromInput } from "@/lib/utils";
 
 interface AccountContextType {
   activeHandle: string;
@@ -196,21 +196,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (scrapeErr: any) {
-      console.warn("Real scraping attempt fell back:", scrapeErr?.message);
-    } finally {
-      setIsLoading(false);
-      setIsSyncingLatest(false);
-    }
-
-    // Fallback only if crawler is unavailable
-    try {
-      const result = generateRealisticPostsForHandle(handle, targetPlatform, 24);
-      setAccount(result.account);
-      setPosts(result.posts);
-      setIsRealData(false);
-      detectNicheForAccount(result.account, result.posts);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load account data");
+      console.warn("Real scraping attempt error:", scrapeErr?.message);
+      setError("Unable to scrape profile. Please verify that the profile is public and exists.");
     } finally {
       setIsLoading(false);
       setIsSyncingLatest(false);

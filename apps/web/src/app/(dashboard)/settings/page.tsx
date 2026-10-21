@@ -123,7 +123,7 @@ export default function SettingsPage() {
         <div>
           <div className="font-bold text-slate-800 mb-0.5">Token Encryption (AES-256-GCM)</div>
           <p>
-            All social media tokens are encrypted at rest using AES-256-GCM and never exposed to the client browser. Development and test modes execute safely through the Mock/Seed provider.
+            All social media tokens are encrypted at rest using AES-256-GCM and never exposed to the client browser.
           </p>
         </div>
       </div>

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     version: str = "0.1.0"
     debug: bool = False
     ai_service_secret: str = os.getenv("AI_SERVICE_SECRET", "dev-ai-service-shared-secret")
-    llm_provider: str = os.getenv("LLM_PROVIDER", "mock")  # mock | anthropic | gemini
+    llm_provider: str = os.getenv("LLM_PROVIDER", "gemini")  # gemini | anthropic
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     port: int = int(os.getenv("PORT", "8000"))

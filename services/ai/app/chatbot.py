@@ -94,7 +94,7 @@ async def chat_with_gemini(
         return {
             "status": "success",
             "reply": f"Hi @{account.get('handle', 'creator')}! I'm your Entangled Echo AI Strategist. For your niche ({niche_info.get('primary_niche', 'Creative Content') if niche_info else 'General'}), focus on posting 5-7 second Reels with strong first-second visual hooks!",
-            "engine": "mock_fallback"
+            "engine": "offline_fallback"
         }
 
     for model_name in GEMINI_MODELS:
