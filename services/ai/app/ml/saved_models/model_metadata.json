@@ -1,0 +1,28 @@
+{
+  "model_name": "Global Instagram Engagement Predictor",
+  "algorithm": "HistGradientBoostingRegressor",
+  "trained_samples": 12000,
+  "test_samples": 3000,
+  "trained_at": "2026-10-21T11:47:25.671039+00:00",
+  "metrics": {
+    "r2_score": 0.6401,
+    "mae_percentage": 1.505,
+    "rmse": 2.219
+  },
+  "feature_importances": {
+    "log_followers": 0.4818,
+    "media_type_reel": 0.1923,
+    "hour_sin": 0.1463,
+    "hour_cos": 0.1267,
+    "media_type_carousel": 0.0181,
+    "media_type_image": 0.007,
+    "day_cos": 0.0065,
+    "sentiment_compound": 0.0057,
+    "day_sin": 0.004,
+    "sentiment_pos": 0.0039,
+    "caption_length_chars": 0.0024,
+    "hashtag_count": 0.0024,
+    "caption_word_count": 0.002,
+    "sentiment_neg": 0.0009
+  }
+}

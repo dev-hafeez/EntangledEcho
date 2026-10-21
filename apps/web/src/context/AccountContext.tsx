@@ -94,6 +94,22 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           setPosts(formattedPosts);
           setIsRealData(true);
           setIsLoading(false);
+
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem(
+                "ee_account_data",
+                JSON.stringify({
+                  account: realAccount,
+                  posts: formattedPosts,
+                  activeHandle: handle,
+                  isRealData: true,
+                })
+              );
+            } catch (storageErr) {
+              console.warn("Storage error:", storageErr);
+            }
+          }
           return;
         }
       }
@@ -120,7 +136,25 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Initial load for the user's handle
+    // Initial load: restore from localStorage if available, otherwise crawl
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("ee_account_data");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed.account && parsed.posts) {
+            setAccount(parsed.account);
+            setPosts(parsed.posts);
+            setActiveHandle(parsed.activeHandle || "hafeezisnt");
+            setIsRealData(parsed.isRealData ?? true);
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          // ignore corrupted cache
+        }
+      }
+    }
     ingestHandleOrUrl("hafeezisnt", "instagram");
   }, []);
 
