@@ -62,11 +62,15 @@ export default function DashboardPage() {
       .finally(() => setLoadingTrends(false));
   }, [nicheInfo?.primary_niche]);
 
-  const handleIngest = (e: React.FormEvent) => {
+  const handleIngest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!urlInput.trim()) return;
-    ingestHandleOrUrl(urlInput.trim());
+    const target = urlInput.trim();
     setUrlInput("");
+    await ingestHandleOrUrl(target);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   const handleCopyHook = (hookText: string, id: string) => {
@@ -197,6 +201,25 @@ export default function DashboardPage() {
             </span>
             <span className="font-mono">Live Extraction</span>
           </div>
+
+          {isLoading && (
+            <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin shrink-0"></div>
+                <div>
+                  <div className="text-xs font-bold text-purple-900">
+                    Crawling @{activeHandle} from Instagram & Analyzing with AI...
+                  </div>
+                  <div className="text-[11px] text-purple-700">
+                    Extracting live post engagements, media types, and detecting creator niche. This takes ~3-5 seconds.
+                  </div>
+                </div>
+              </div>
+              <span className="text-[11px] font-mono bg-purple-100 text-purple-800 px-2.5 py-1 rounded-md border border-purple-300 font-semibold whitespace-nowrap">
+                Live Crawler Active
+              </span>
+            </div>
+          )}
 
           {error && (
             <div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 flex items-center gap-2">

@@ -229,7 +229,7 @@ def save_profile_and_posts(
             if existing_row:
                 post_id = existing_row["id"]
             else:
-                post_id = p.get("id") or (f"post_{shortcode}" if shortcode else f"post_{clean_handle}_{idx}")
+                post_id = f"post_{clean_handle}_{shortcode}" if shortcode else f"post_{clean_handle}_{idx}_{int(time.time())}"
 
             cursor.execute("""
                 INSERT INTO scraped_posts (
