@@ -6,6 +6,12 @@ from app.ml.engine import ml_engine
 from app.trending import fetch_live_google_trends, tailor_trend_to_niche
 from app.niche_detector import detect_creator_niche
 from app.chatbot import chat_with_gemini
+from app.db import (
+    get_cached_profile_and_posts,
+    save_profile_and_posts,
+    list_all_cached_profiles,
+    delete_cached_profile
+)
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
@@ -13,6 +19,7 @@ api_v1_router = APIRouter(prefix="/api/v1")
 class ScrapeInstagramRequest(BaseModel):
     username: str
     max_posts: Optional[int] = 12
+    force_refresh: Optional[bool] = False
 
 
 class PredictEngagementRequest(BaseModel):
@@ -157,20 +164,59 @@ async def recommend_content_endpoint(req: RecommendContentRequest):
 @api_v1_router.post("/scrape/instagram")
 async def scrape_instagram_endpoint(req: ScrapeInstagramRequest):
     """
-    Server-side Playwright crawler:
-    Scrapes real profile metadata, follower counts, and real post captions & images.
+    Checks database cache first. If found, returns immediately.
+    Otherwise crawls via Playwright, detects niche, and stores to database.
     """
     if not req.username:
         raise HTTPException(status_code=400, detail="Username is required")
 
+    clean_handle = req.username.strip().lstrip("@")
+
+    # 1. Check database cache first if not forced
+    if not req.force_refresh:
+        cached = get_cached_profile_and_posts(clean_handle)
+        if cached:
+            return cached
+
+    # 2. Live crawling via Playwright
     try:
         data = await scrape_instagram_profile_and_posts(
-            username=req.username,
+            username=clean_handle,
             max_posts=req.max_posts or 12,
             headless=True
         )
+
+        # 3. Detect Niche & Save to Database
+        if data.get("status") == "success" and data.get("account"):
+            niche_res = await detect_creator_niche(data["account"], data.get("posts", []))
+            data["account"]["niche"] = niche_res.get("primary_niche")
+            data["account"]["niche_info"] = niche_res
+            save_profile_and_posts(clean_handle, data["account"], data.get("posts", []), niche_res)
+            data["source"] = "live_crawler"
+
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_v1_router.get("/profiles/cached")
+async def list_cached_profiles_endpoint():
+    """Admin endpoint: lists all stored profiles in database."""
+    return {
+        "status": "success",
+        "profiles": list_all_cached_profiles()
+    }
+
+
+@api_v1_router.delete("/profiles/{handle}")
+async def delete_cached_profile_endpoint(handle: str):
+    """Admin endpoint: deletes a cached profile from database."""
+    deleted = delete_cached_profile(handle)
+    return {
+        "status": "success",
+        "deleted": deleted,
+        "handle": handle
+    }
+
 
 

@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         username,
-        max_posts: 12,
+        max_posts: body.max_posts || 12,
+        force_refresh: body.force_refresh || false,
       }),
     });
 

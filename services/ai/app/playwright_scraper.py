@@ -216,8 +216,11 @@ async def scrape_instagram_profile_and_posts(
                     weighted_eng = likes * 1.0 + comments * 3.0
                     perf_score = min(1.0, max(0.1, round((weighted_eng / est_reach) * 3.5, 3)))
 
+                    shortcode_m = re.search(r'/(?:p|reel|tv)/([^/]+)', post_url)
+                    shortcode = shortcode_m.group(1) if shortcode_m else f"{username}_{idx}"
+
                     results.append({
-                        "id": f"real_{username}_{idx}",
+                        "id": f"post_{shortcode}",
                         "post_url": post_url,
                         "media_url": meta.get("image"),
                         "media_type": media_type,

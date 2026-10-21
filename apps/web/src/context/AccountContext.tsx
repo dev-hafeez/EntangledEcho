@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { SocialAccount, Post, Platform } from "@/types";
 import { extractHandleFromInput, generateRealisticPostsForHandle } from "@/lib/providers/mock";
 
@@ -12,28 +12,44 @@ interface AccountContextType {
   nicheInfo: any;
   isDetectingNiche: boolean;
   isLoading: boolean;
+  isSyncingLatest: boolean;
+  lastSyncedAt: string | null;
   error: string | null;
   isRealData: boolean;
   setPlatform: (platform: Platform) => void;
   setNicheInfo: (info: any) => void;
-  ingestHandleOrUrl: (input: string, explicitPlatform?: Platform) => Promise<void>;
+  ingestHandleOrUrl: (input: string, explicitPlatform?: Platform, forceRefresh?: boolean) => Promise<void>;
+  syncLatestPosts: (targetHandle?: string) => Promise<void>;
 }
 
 const AccountContext = createContext<AccountContextType | undefined>(undefined);
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {
-  const [activeHandle, setActiveHandle] = useState<string>("hafeezisnt");
+  const [activeHandle, setActiveHandle] = useState<string>("");
   const [activePlatform, setActivePlatform] = useState<Platform>("instagram");
   const [account, setAccount] = useState<SocialAccount | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [nicheInfo, setNicheInfo] = useState<any>(null);
   const [isDetectingNiche, setIsDetectingNiche] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSyncingLatest, setIsSyncingLatest] = useState<boolean>(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRealData, setIsRealData] = useState<boolean>(false);
 
-  const ingestHandleOrUrl = async (input: string, explicitPlatform?: Platform) => {
-    setIsLoading(true);
+  const hasAutoSyncedRef = useRef<boolean>(false);
+
+  const ingestHandleOrUrl = async (
+    input: string,
+    explicitPlatform?: Platform,
+    forceRefresh: boolean = false
+  ) => {
+    // Only show full loading blocker if we have no existing account in view
+    if (!account) {
+      setIsLoading(true);
+    } else if (forceRefresh) {
+      setIsSyncingLatest(true);
+    }
     setError(null);
 
     const { handle, detectedPlatform } = extractHandleFromInput(input);
@@ -42,11 +58,15 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     setActivePlatform(targetPlatform);
 
     try {
-      // 1. Attempt Real Server-Side Scraping via Playwright backend
+      // 1. Server-Side Scraper via Playwright & Database Cache
       const res = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: handle, platform: targetPlatform }),
+        body: JSON.stringify({
+          username: handle,
+          platform: targetPlatform,
+          force_refresh: forceRefresh,
+        }),
       });
 
       if (res.ok) {
@@ -99,12 +119,19 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           setPosts(formattedPosts);
           setIsRealData(true);
           setIsLoading(false);
+          setIsSyncingLatest(false);
+          setLastSyncedAt(new Date().toLocaleTimeString());
 
-          // Trigger automatic niche detection via Gemini AI
-          detectNicheForAccount(realAccount, formattedPosts);
+          // Trigger automatic niche detection via Gemini AI if new
+          if (accInfo.niche_info) {
+            setNicheInfo(accInfo.niche_info);
+          } else {
+            detectNicheForAccount(realAccount, formattedPosts);
+          }
 
           if (typeof window !== "undefined") {
             try {
+              localStorage.setItem("ee_linked_handle", handle);
               localStorage.setItem(
                 "ee_account_data",
                 JSON.stringify({
@@ -120,7 +147,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           }
           return;
         } else {
-          // Profile exists but has ZERO posts
+          // Profile exists but has 0 posts
           const emptyAccount: SocialAccount = {
             id: `acc_real_${handle}`,
             user_id: "demo-user-1",
@@ -139,15 +166,20 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           setPosts([]);
           setIsRealData(true);
           setIsLoading(false);
+          setIsSyncingLatest(false);
+          setLastSyncedAt(new Date().toLocaleTimeString());
           detectNicheForAccount(emptyAccount, []);
           return;
         }
       }
     } catch (scrapeErr: any) {
       console.warn("Real scraping attempt fell back:", scrapeErr?.message);
+    } finally {
+      setIsLoading(false);
+      setIsSyncingLatest(false);
     }
 
-    // Fallback to deterministic normalized data generator if live browser crawler is warming up
+    // Fallback only if crawler is unavailable
     try {
       const result = generateRealisticPostsForHandle(handle, targetPlatform, 24);
       setAccount(result.account);
@@ -158,6 +190,25 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       setError(err?.message || "Failed to load account data");
     } finally {
       setIsLoading(false);
+      setIsSyncingLatest(false);
+    }
+  };
+
+  /**
+   * Scrapes the user's connected Instagram profile for the very latest posts
+   * Updates database cache and refreshes state in real-time.
+   */
+  const syncLatestPosts = async (targetHandle?: string) => {
+    const handleToSync = targetHandle || activeHandle;
+    if (!handleToSync) return;
+
+    setIsSyncingLatest(true);
+    try {
+      await ingestHandleOrUrl(handleToSync, activePlatform, true);
+    } catch (e) {
+      console.warn("Failed to sync latest posts:", e);
+    } finally {
+      setIsSyncingLatest(false);
     }
   };
 
@@ -188,9 +239,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     ingestHandleOrUrl(activeHandle, platform);
   };
 
+  // On Login / Mount:
+  // 1. Immediately display cached profile & posts from DB/localStorage (instant 0.05s response)
+  // 2. Automatically scrape Instagram for the connected profile to fetch latest posts!
   useEffect(() => {
-    // Initial load: restore from localStorage if available, otherwise crawl
+    let savedHandle: string | null = null;
+
     if (typeof window !== "undefined") {
+      savedHandle = localStorage.getItem("ee_linked_handle");
       const cached = localStorage.getItem("ee_account_data");
       const cachedNiche = localStorage.getItem("ee_niche_info");
 
@@ -205,23 +261,37 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          if (parsed.account) {
+          if (parsed.account && parsed.account.handle) {
             setAccount(parsed.account);
             setPosts(parsed.posts || []);
-            setActiveHandle(parsed.activeHandle || "hafeezisnt");
+            setActiveHandle(parsed.account.handle);
             setIsRealData(parsed.isRealData ?? true);
             setIsLoading(false);
-            if (!cachedNiche) {
-              detectNicheForAccount(parsed.account, parsed.posts || []);
-            }
-            return;
+            savedHandle = parsed.account.handle;
           }
         } catch (e) {
           // ignore corrupted cache
         }
       }
     }
-    ingestHandleOrUrl("hafeezisnt", "instagram");
+
+    if (savedHandle) {
+      setActiveHandle(savedHandle);
+
+      // If we don't have posts loaded yet, load them from cache first
+      if (!account) {
+        ingestHandleOrUrl(savedHandle, "instagram", false);
+      }
+
+      // Automatically scrape Instagram for latest posts on login!
+      if (!hasAutoSyncedRef.current) {
+        hasAutoSyncedRef.current = true;
+        // Trigger live refresh in background to fetch latest posts
+        syncLatestPosts(savedHandle);
+      }
+    } else {
+      setIsLoading(false);
+    }
   }, []);
 
   return (
@@ -234,11 +304,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         nicheInfo,
         isDetectingNiche,
         isLoading,
+        isSyncingLatest,
+        lastSyncedAt,
         error,
         isRealData,
         setPlatform,
         setNicheInfo,
         ingestHandleOrUrl,
+        syncLatestPosts,
       }}
     >
       {children}
