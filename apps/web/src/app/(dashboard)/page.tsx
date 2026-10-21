@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { activeHandle, account, posts, isLoading, error, ingestHandleOrUrl } = useAccount();
+  const { activeHandle, account, posts, isLoading, error, isRealData, ingestHandleOrUrl } = useAccount();
   const [urlInput, setUrlInput] = useState("");
 
   const handleIngest = (e: React.FormEvent) => {
@@ -34,7 +34,7 @@ export default function DashboardPage() {
   };
 
   // Calculations for KPI Cards
-  const totalFollowers = account?.follower_count || 14200;
+  const totalFollowers = account?.follower_count || 0;
   const totalPosts = posts.length;
   const totalReach = posts.reduce((acc, p) => acc + (p.latest_metrics?.reach || 0), 0);
   const avgEngagementRate =
@@ -62,24 +62,40 @@ export default function DashboardPage() {
       {/* Page Title & Ingestion Card */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                Creator Overview
-              </h1>
-              <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
-                Live Analysis
-              </span>
+          <div className="flex items-center gap-4">
+            {account?.avatar_url ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={account.avatar_url}
+                alt="Profile avatar"
+                className="w-14 h-14 rounded-full object-cover ring-2 ring-slate-200 shadow-sm"
+              />
+            ) : null}
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                  Creator Overview
+                </h1>
+                <span
+                  className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                    isRealData
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                      : "bg-slate-100 text-slate-700 border-slate-300"
+                  }`}
+                >
+                  {isRealData ? "🟢 100% Real Scraped" : "Data Engine"}
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-1">
+                Analyzing historical engagement data, optimal posting windows, and content scores for{" "}
+                <strong className="text-slate-800 font-mono">@{activeHandle}</strong>
+              </p>
             </div>
-            <p className="text-sm text-slate-500 mt-1">
-              Analyzing historical engagement data, optimal posting windows, and content scores for{" "}
-              <strong className="text-slate-800 font-mono">@{activeHandle}</strong>
-            </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">Quick presets:</span>
-            {["design_lab", "tech_trends", "growth_creator"].map((preset) => (
+            <span className="text-xs text-slate-400">Quick profiles:</span>
+            {["hafeezisnt", "natgeo"].map((preset) => (
               <button
                 key={preset}
                 onClick={() => ingestHandleOrUrl(preset)}
@@ -326,8 +342,17 @@ export default function DashboardPage() {
                       <strong className="text-slate-700">{formatNumber(m?.saves || 0)}</strong>
                     </span>
                   </div>
-                  <div className="text-[11px] font-medium text-slate-400">
-                    Reach: <strong className="text-slate-700">{formatNumber(m?.reach || 0)}</strong>
+                  <div className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
+                    <span>Reach: <strong className="text-slate-700">{formatNumber(m?.reach || 0)}</strong></span>
+                    <a
+                      href={post.permalink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                      title="Open original post on Instagram"
+                    >
+                      <ArrowUpRight className="w-3 h-3" />
+                    </a>
                   </div>
                 </div>
               </div>

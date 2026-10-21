@@ -5,7 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 
 function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
-  const { activeHandle, ingestHandleOrUrl, isLoading } = useAccount();
+  const { activeHandle, activePlatform, ingestHandleOrUrl, isLoading } = useAccount();
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -13,6 +13,7 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar
           activeHandle={activeHandle}
+          activePlatform={activePlatform}
           onAnalyzeHandle={ingestHandleOrUrl}
           isAnalyzing={isLoading}
         />
