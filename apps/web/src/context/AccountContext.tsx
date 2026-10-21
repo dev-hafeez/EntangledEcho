@@ -44,16 +44,18 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     explicitPlatform?: Platform,
     forceRefresh: boolean = false
   ) => {
-    // Only show full loading blocker if we have no existing account in view
-    if (!account) {
-      setIsLoading(true);
-    } else if (forceRefresh) {
+    const { handle, detectedPlatform } = extractHandleFromInput(input);
+    if (!handle) {
+      setError("Please enter a valid Instagram username or profile link.");
+      return;
+    }
+
+    const targetPlatform = explicitPlatform || detectedPlatform;
+    setIsLoading(true);
+    if (forceRefresh) {
       setIsSyncingLatest(true);
     }
     setError(null);
-
-    const { handle, detectedPlatform } = extractHandleFromInput(input);
-    const targetPlatform = explicitPlatform || detectedPlatform;
     setActiveHandle(handle);
     setActivePlatform(targetPlatform);
 
@@ -194,6 +196,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           }
           return;
         }
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        setError(errJson.error || `Could not scrape @${handle}. Please verify that the profile is public and exists.`);
       }
     } catch (scrapeErr: any) {
       console.warn("Real scraping attempt error:", scrapeErr?.message);

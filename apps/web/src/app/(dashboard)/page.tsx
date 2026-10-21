@@ -197,6 +197,13 @@ export default function DashboardPage() {
             </span>
             <span className="font-mono">Live Extraction</span>
           </div>
+
+          {error && (
+            <div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+              <span>{error}</span>
+            </div>
+          )}
         </form>
       </div>
 
