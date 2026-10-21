@@ -1,0 +1,23 @@
+{
+  "name": "entangled-echo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-Powered Social Media Content & Schedule Optimization Platform",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "dev:all": "concurrently \"pnpm --filter web dev\" \"pnpm run dev:ai\"",
+    "dev:ai": "cd services/ai && python3 -m uvicorn app.main:app --reload --port 8000",
+    "build": "pnpm --filter web build",
+    "test": "pnpm --filter web test && pnpm run test:ai",
+    "test:web": "pnpm --filter web test",
+    "test:ai": "cd services/ai && pytest",
+    "lint": "pnpm --filter web lint && pnpm run lint:ai",
+    "lint:ai": "cd services/ai && ruff check .",
+    "seed": "tsx scripts/seed/generate.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.5"
+  }
+}
