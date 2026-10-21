@@ -88,7 +88,16 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
             is_synthetic: false,
           };
 
-          const formattedPosts: Post[] = data.posts.map((p: any, idx: number) => ({
+          // Safeguard: Deduplicate by post_url
+          const seenUrls = new Set<string>();
+          const distinctPosts = data.posts.filter((p: any) => {
+            const norm = (p.post_url || p.id || "").split("?")[0].replace(/\/$/, "");
+            if (!norm || seenUrls.has(norm)) return false;
+            seenUrls.add(norm);
+            return true;
+          });
+
+          const formattedPosts: Post[] = distinctPosts.map((p: any, idx: number) => ({
             id: p.id || `post_${handle}_${idx}`,
             account_id: realAccount.id,
             external_id: p.post_url,
