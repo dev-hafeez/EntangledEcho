@@ -9,10 +9,13 @@ interface AccountContextType {
   activePlatform: Platform;
   account: SocialAccount | null;
   posts: Post[];
+  nicheInfo: any;
+  isDetectingNiche: boolean;
   isLoading: boolean;
   error: string | null;
   isRealData: boolean;
   setPlatform: (platform: Platform) => void;
+  setNicheInfo: (info: any) => void;
   ingestHandleOrUrl: (input: string, explicitPlatform?: Platform) => Promise<void>;
 }
 
@@ -23,6 +26,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [activePlatform, setActivePlatform] = useState<Platform>("instagram");
   const [account, setAccount] = useState<SocialAccount | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [nicheInfo, setNicheInfo] = useState<any>(null);
+  const [isDetectingNiche, setIsDetectingNiche] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isRealData, setIsRealData] = useState<boolean>(false);
@@ -95,6 +100,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           setIsRealData(true);
           setIsLoading(false);
 
+          // Trigger automatic niche detection via Gemini AI
+          detectNicheForAccount(realAccount, formattedPosts);
+
           if (typeof window !== "undefined") {
             try {
               localStorage.setItem(
@@ -111,6 +119,28 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
             }
           }
           return;
+        } else {
+          // Profile exists but has ZERO posts
+          const emptyAccount: SocialAccount = {
+            id: `acc_real_${handle}`,
+            user_id: "demo-user-1",
+            platform: targetPlatform,
+            external_id: `real_${handle}`,
+            handle: handle,
+            avatar_url: data.account?.avatar_url,
+            follower_count: data.account?.followers || 0,
+            following_count: data.account?.following || 0,
+            media_count: 0,
+            last_sync: new Date().toISOString(),
+            status: "active",
+            is_synthetic: false,
+          };
+          setAccount(emptyAccount);
+          setPosts([]);
+          setIsRealData(true);
+          setIsLoading(false);
+          detectNicheForAccount(emptyAccount, []);
+          return;
         }
       }
     } catch (scrapeErr: any) {
@@ -123,10 +153,33 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       setAccount(result.account);
       setPosts(result.posts);
       setIsRealData(false);
+      detectNicheForAccount(result.account, result.posts);
     } catch (err: any) {
       setError(err?.message || "Failed to load account data");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const detectNicheForAccount = async (acc: SocialAccount, postList: Post[]) => {
+    setIsDetectingNiche(true);
+    try {
+      const res = await fetch("/api/niche", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account: acc, posts: postList }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNicheInfo(data);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ee_niche_info", JSON.stringify(data));
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to detect niche:", e);
+    } finally {
+      setIsDetectingNiche(false);
     }
   };
 
@@ -139,15 +192,28 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     // Initial load: restore from localStorage if available, otherwise crawl
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem("ee_account_data");
+      const cachedNiche = localStorage.getItem("ee_niche_info");
+
+      if (cachedNiche) {
+        try {
+          setNicheInfo(JSON.parse(cachedNiche));
+        } catch (e) {
+          // ignore
+        }
+      }
+
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          if (parsed.account && parsed.posts) {
+          if (parsed.account) {
             setAccount(parsed.account);
-            setPosts(parsed.posts);
+            setPosts(parsed.posts || []);
             setActiveHandle(parsed.activeHandle || "hafeezisnt");
             setIsRealData(parsed.isRealData ?? true);
             setIsLoading(false);
+            if (!cachedNiche) {
+              detectNicheForAccount(parsed.account, parsed.posts || []);
+            }
             return;
           }
         } catch (e) {
@@ -165,10 +231,13 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         activePlatform,
         account,
         posts,
+        nicheInfo,
+        isDetectingNiche,
         isLoading,
         error,
         isRealData,
         setPlatform,
+        setNicheInfo,
         ingestHandleOrUrl,
       }}
     >

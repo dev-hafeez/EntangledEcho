@@ -13,6 +13,7 @@ import {
   Instagram,
   Facebook,
   Radio,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ const navItems: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Recommendations", href: "/recommendations", icon: Sparkles },
+  { name: "AI Strategist", href: "/chat", icon: Bot },
   { name: "Content Calendar", href: "/calendar", icon: CalendarDays },
   { name: "Notifications", href: "/notifications", icon: Bell },
   { name: "Settings", href: "/settings", icon: Settings },

@@ -9,6 +9,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Platform } from "@/types";
+import { useAccount } from "@/context/AccountContext";
 
 interface TopbarProps {
   onAnalyzeHandle?: (handleOrUrl: string, explicitPlatform?: Platform) => void;
@@ -23,6 +24,7 @@ export function Topbar({
   activePlatform = "instagram",
   isAnalyzing = false,
 }: TopbarProps) {
+  const { nicheInfo, isDetectingNiche } = useAccount();
   const [inputValue, setInputValue] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -75,7 +77,15 @@ export function Topbar({
       </form>
 
       {/* Right Action Icons & Profile */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        {/* Niche Badge */}
+        {nicheInfo?.primary_niche && (
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-purple-800 rounded-full border border-purple-200 text-xs font-semibold">
+            <span>🎯</span>
+            <span>{isDetectingNiche ? "Detecting..." : nicheInfo.primary_niche}</span>
+          </div>
+        )}
+
         {/* Active Account Pill */}
         <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full border border-slate-200 text-xs">
           {activePlatform === "facebook" ? (

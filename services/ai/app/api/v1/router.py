@@ -1,8 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from app.playwright_scraper import scrape_instagram_profile_and_posts
 from app.ml.engine import ml_engine
+from app.trending import fetch_live_google_trends, tailor_trend_to_niche
+from app.niche_detector import detect_creator_niche
+from app.chatbot import chat_with_gemini
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
@@ -26,6 +29,17 @@ class RecommendContentRequest(BaseModel):
     user_posts: List[Dict[str, Any]] = []
 
 
+class DetectNicheRequest(BaseModel):
+    account: Dict[str, Any] = {}
+    posts: List[Dict[str, Any]] = []
+
+
+class ChatCreatorRequest(BaseModel):
+    messages: List[Dict[str, str]]
+    account: Dict[str, Any]
+    niche_info: Optional[Dict[str, Any]] = None
+
+
 @api_v1_router.get("/status")
 async def get_v1_status():
     return {
@@ -37,10 +51,63 @@ async def get_v1_status():
             "recommender",
             "decomposer",
             "playwright_scraper",
-            "dual_ml_engine"
+            "dual_ml_engine",
+            "google_trends_harvester",
+            "gemini_niche_detector",
+            "gemini_creator_chatbot"
         ],
         "model_loaded": ml_engine.global_model is not None
     }
+
+
+@api_v1_router.get("/trends/google")
+async def get_google_trends_endpoint(
+    geo: str = Query("US", description="Two-letter country code or US"),
+    limit: int = Query(12, description="Max trends to return"),
+    niche: Optional[str] = Query(None, description="Creator niche to tailor angles for")
+):
+    """
+    Returns live Google Trends search spikes with optional niche-tailored post hooks.
+    """
+    try:
+        raw_trends = fetch_live_google_trends(geo=geo, limit=limit)
+        if niche:
+            for item in raw_trends:
+                item["niche_angle"] = tailor_trend_to_niche(item, niche)
+        return {
+            "status": "success",
+            "geo": geo,
+            "target_niche": niche,
+            "trends": raw_trends
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_v1_router.post("/niche/detect")
+async def detect_niche_endpoint(req: DetectNicheRequest):
+    """
+    Detects creator niche from scraped posts using Gemini AI.
+    Routes 0-post creators to onboarding chat.
+    """
+    try:
+        result = await detect_creator_niche(req.account, req.posts)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_v1_router.post("/chat/creator")
+async def chat_creator_endpoint(req: ChatCreatorRequest):
+    """
+    Gemini-powered Creator Strategist Chatbot.
+    Assists with onboarding niche discovery or ongoing content ideation.
+    """
+    try:
+        result = await chat_with_gemini(req.messages, req.account, req.niche_info)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @api_v1_router.get("/model/metadata")
@@ -105,4 +172,5 @@ async def scrape_instagram_endpoint(req: ScrapeInstagramRequest):
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
