@@ -1,0 +1,15 @@
+{
+  "concurrent_users": 100,
+  "total_requests": 800,
+  "duration_seconds": 54.59,
+  "requests_per_second": 14.7,
+  "latencies_ms": {
+    "mean": 5585.41,
+    "p50": 4658.3,
+    "p90": 13212.41,
+    "p95": 16789.4,
+    "p99": 21060.52
+  },
+  "target_p95_ms": 500.0,
+  "passed": false
+}

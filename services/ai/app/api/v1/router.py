@@ -324,7 +324,7 @@ async def full_content_analysis_endpoint(req: DetectNicheRequest):
 # -------------------------------------------------------------
 
 @api_v1_router.get("/calendar/posts")
-async def get_scheduled_posts_endpoint(handle: str = Query(...)):
+def get_scheduled_posts_endpoint(handle: str = Query(...)):
     """Lists all scheduled posts for creator."""
     clean_handle = handle.strip().lstrip("@").lower()
     posts = list_scheduled_posts(clean_handle)
@@ -337,7 +337,7 @@ async def get_scheduled_posts_endpoint(handle: str = Query(...)):
 
 
 @api_v1_router.post("/calendar/posts")
-async def create_scheduled_post_endpoint(req: ScheduledPostRequest):
+def create_scheduled_post_endpoint(req: ScheduledPostRequest):
     """Schedules a new post."""
     try:
         res = add_scheduled_post(req.dict())
@@ -347,7 +347,7 @@ async def create_scheduled_post_endpoint(req: ScheduledPostRequest):
 
 
 @api_v1_router.delete("/calendar/posts/{post_id}")
-async def delete_scheduled_post_endpoint(post_id: str):
+def delete_scheduled_post_endpoint(post_id: str):
     """Deletes a scheduled post."""
     deleted = delete_scheduled_post(post_id)
     return {"status": "success", "deleted": deleted, "id": post_id}
@@ -487,7 +487,7 @@ async def scrape_instagram_endpoint(req: ScrapeInstagramRequest):
 
 
 @api_v1_router.get("/profiles/cached")
-async def list_cached_profiles_endpoint():
+def list_cached_profiles_endpoint():
     """Admin endpoint: lists all stored profiles in database."""
     return {
         "status": "success",
@@ -496,7 +496,7 @@ async def list_cached_profiles_endpoint():
 
 
 @api_v1_router.delete("/profiles/{handle}")
-async def delete_cached_profile_endpoint(handle: str):
+def delete_cached_profile_endpoint(handle: str):
     """Admin endpoint: deletes a cached profile from database."""
     deleted = delete_cached_profile(handle)
     return {
