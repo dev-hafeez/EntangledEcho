@@ -6,13 +6,13 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "dev:all": "concurrently \"pnpm --filter web dev\" \"pnpm run dev:ai\"",
-    "dev:ai": "cd services/ai && python3 -m uvicorn app.main:app --reload --port 8000",
+    "dev:ai": "cd services/ai && ./.venv/bin/uvicorn app.main:app --reload --port 8001",
     "build": "pnpm --filter web build",
     "test": "pnpm --filter web test && pnpm run test:ai",
     "test:web": "pnpm --filter web test",
-    "test:ai": "cd services/ai && pytest",
+    "test:ai": "cd services/ai && ./.venv/bin/pytest",
     "lint": "pnpm --filter web lint && pnpm run lint:ai",
-    "lint:ai": "cd services/ai && ruff check .",
+    "lint:ai": "cd services/ai && ./.venv/bin/ruff check .",
     "seed": "tsx scripts/seed/generate.ts"
   },
   "devDependencies": {

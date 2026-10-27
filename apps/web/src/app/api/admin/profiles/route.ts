@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const aiServiceUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+    const aiServiceUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8001";
     const res = await fetch(`${aiServiceUrl}/api/v1/profiles/cached`, {
       cache: "no-store",
     });
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Username is required" }, { status: 400 });
     }
 
-    const aiServiceUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+    const aiServiceUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8001";
     const res = await fetch(`${aiServiceUrl}/api/v1/scrape/instagram`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -59,7 +59,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Handle query parameter is required" }, { status: 400 });
     }
 
-    const aiServiceUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+    const aiServiceUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8001";
     const res = await fetch(`${aiServiceUrl}/api/v1/profiles/${encodeURIComponent(handle)}`, {
       method: "DELETE",
     });

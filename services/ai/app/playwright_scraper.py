@@ -109,6 +109,23 @@ async def scrape_instagram_profile_and_posts(
                         const title = getMeta('og:title') || document.title || '';
                         const avatar = getMeta('og:image');
 
+                        // DOM fallback for metrics
+                        let domFollowers = null;
+                        let domFollowing = null;
+                        let domPosts = null;
+
+                        const headerLis = Array.from(document.querySelectorAll('header section ul li, header ul li'));
+                        for (const li of headerLis) {
+                            const text = (li.innerText || '').trim();
+                            if (/followers/i.test(text)) {
+                                domFollowers = text.replace(/followers/i, '').trim();
+                            } else if (/following/i.test(text)) {
+                                domFollowing = text.replace(/following/i, '').trim();
+                            } else if (/posts/i.test(text)) {
+                                domPosts = text.replace(/posts/i, '').trim();
+                            }
+                        }
+
                         // Find all post anchors on page
                         const postEls = Array.from(document.querySelectorAll('a[href*="/p/"], a[href*="/reel/"]'));
                         const seen = new Set();
@@ -137,26 +154,76 @@ async def scrape_instagram_profile_and_posts(
                             title,
                             desc,
                             avatar,
+                            domFollowers,
+                            domFollowing,
+                            domPosts,
                             rawPosts
                         };
                     }
                 """)
 
-                # Parse follower, following, posts counts from description
+                # Check if page is 404 / private
+                page_title = page_data.get("title", "")
+                if "Page Not Found" in page_title or "isn't available" in page_title:
+                    return {
+                        "status": "error",
+                        "message": f"Instagram profile @{clean_handle} was not found or is private."
+                    }
+
+                # If no posts found initially, scroll down slightly and re-check
+                if not page_data.get("rawPosts"):
+                    for _ in range(3):
+                        await page.evaluate("window.scrollBy(0, 500)")
+                        await page.wait_for_timeout(1000)
+                        more_posts = await page.evaluate("""
+                            () => {
+                                const postEls = Array.from(document.querySelectorAll('a[href*="/p/"], a[href*="/reel/"]'));
+                                const seen = new Set();
+                                const rawPosts = [];
+                                for (const a of postEls) {
+                                    const cleanHref = a.href.split('?')[0];
+                                    if (seen.has(cleanHref)) continue;
+                                    seen.add(cleanHref);
+                                    const img = a.querySelector('img');
+                                    const altText = img ? (img.alt || '') : '';
+                                    const imgSrc = img ? (img.src || null) : null;
+                                    const aria = a.getAttribute('aria-label') || '';
+                                    rawPosts.push({
+                                        href: cleanHref,
+                                        img_src: imgSrc,
+                                        alt: altText,
+                                        aria: aria,
+                                        type: cleanHref.includes('/reel/') ? 'reel' : 'image'
+                                    });
+                                }
+                                return rawPosts;
+                            }
+                        """)
+                        if more_posts:
+                            page_data["rawPosts"] = more_posts
+                            break
+
+                # Parse follower, following, posts counts from description and DOM
                 desc = page_data.get("desc", "")
                 account_info["avatar_url"] = page_data.get("avatar")
 
                 f_match = re.search(r'([\d.,]+[KkMmBb]?)\s*Followers', desc, re.I)
                 if f_match:
                     account_info["followers"] = parse_metric_string(f_match.group(1))
+                elif page_data.get("domFollowers"):
+                    account_info["followers"] = parse_metric_string(page_data["domFollowers"])
 
                 fw_match = re.search(r'([\d.,]+[KkMmBb]?)\s*Following', desc, re.I)
                 if fw_match:
                     account_info["following"] = parse_metric_string(fw_match.group(1))
+                elif page_data.get("domFollowing"):
+                    account_info["following"] = parse_metric_string(page_data["domFollowing"])
 
                 p_match = re.search(r'([\d.,]+[KkMmBb]?)\s*Posts', desc, re.I)
                 if p_match:
                     account_info["media_count"] = parse_metric_string(p_match.group(1))
+                elif page_data.get("domPosts"):
+                    account_info["media_count"] = parse_metric_string(page_data["domPosts"])
 
                 bio_match = re.search(r'Instagram:\s*\"(.*?)\"', desc)
                 if bio_match:
@@ -169,46 +236,83 @@ async def scrape_instagram_profile_and_posts(
                 results: List[Dict[str, Any]] = []
                 followers = max(account_info["followers"], 100)
 
-                # Optional: Visit first 2 posts quickly (3s timeout each) for real like/comment counters
-                detailed_post_metrics: Dict[str, Dict[str, int]] = {}
-                for post_item in raw_posts[:2]:
-                    post_href = post_item["href"]
+                # Visit posts concurrently in parallel batches to extract verified real captions, hashtags, likes, and comments
+                detailed_post_metrics: Dict[str, Dict[str, Any]] = {}
+
+                async def fetch_single_post_meta(sub_context, post_href: str):
+                    sub_page = await sub_context.new_page()
                     try:
-                        await page.goto(post_href, wait_until="domcontentloaded", timeout=4000)
-                        await page.wait_for_timeout(1000)
-                        p_desc = await page.evaluate("() => document.querySelector('meta[property=\"og:description\"]')?.content || ''")
-                        
-                        likes = 0
-                        comments = 0
+                        await sub_page.goto(post_href, wait_until="domcontentloaded", timeout=9000)
+                        p_data = await sub_page.evaluate("""() => {
+                            const ogTitle = document.querySelector('meta[property="og:title"]')?.content || '';
+                            const ogDesc = document.querySelector('meta[property="og:description"]')?.content || '';
+                            return { ogTitle, ogDesc };
+                        }""")
+                        p_desc = p_data.get("ogDesc", "")
+                        p_title = p_data.get("ogTitle", "")
+
+                        p_likes = 0
+                        p_comments = 0
                         likes_m = re.search(r'([\d.,]+[KkMmBb]?)\s*likes', p_desc, re.I)
                         if likes_m:
-                            likes = parse_metric_string(likes_m.group(1))
+                            p_likes = parse_metric_string(likes_m.group(1))
                         comments_m = re.search(r'([\d.,]+[KkMmBb]?)\s*comments', p_desc, re.I)
                         if comments_m:
-                            comments = parse_metric_string(comments_m.group(1))
+                            p_comments = parse_metric_string(comments_m.group(1))
 
-                        if likes > 0:
-                            detailed_post_metrics[post_href] = {"likes": likes, "comments": comments}
+                        real_cap = ""
+                        # 1. From og:title: 'Username on Instagram: "Caption"'
+                        m_title = re.search(r'on Instagram(?:\u200e)?:\s*[\"“](.*?)[\"”](?:\s*$|\s*#)', p_title, re.DOTALL)
+                        if m_title and len(m_title.group(1).strip()) > 0:
+                            real_cap = m_title.group(1).strip()
+                        elif p_desc:
+                            # 2. From og:description if not in og:title
+                            m_desc = re.search(r'[\d.,]+[KkMmBb]?\s*comments\s*-\s*[^:]+:\s*[\"“](.*?)[\"”]', p_desc, re.DOTALL)
+                            if m_desc and len(m_desc.group(1).strip()) > 0:
+                                real_cap = m_desc.group(1).strip()
+
+                        return post_href, {
+                            "likes": p_likes,
+                            "comments": p_comments,
+                            "caption": real_cap
+                        }
                     except Exception:
-                        pass  # Continue gracefully
+                        return post_href, {}
+                    finally:
+                        await sub_page.close()
+
+                # Process raw_posts in concurrent batches of 4
+                batch_size = 4
+                for b_idx in range(0, min(len(raw_posts), 12), batch_size):
+                    batch = raw_posts[b_idx:b_idx + batch_size]
+                    batch_res = await asyncio.gather(*[fetch_single_post_meta(context, it["href"]) for it in batch])
+                    for p_href, meta in batch_res:
+                        if meta:
+                            detailed_post_metrics[p_href] = meta
 
                 for idx, item in enumerate(raw_posts, 1):
                     href = item["href"]
                     shortcode_m = re.search(r'/(?:p|reel|tv)/([^/]+)', href)
                     shortcode = shortcode_m.group(1) if shortcode_m else f"{clean_handle}_{idx}"
 
-                    caption = item.get("alt", "").strip()
-                    # Clean generic "Photo by on..." prefixes if present
-                    caption_clean = re.sub(r'^(?:Photo|Video)\s+by\s+.*?\s+on\s+.*?\.\s*', '', caption)
+                    caption_clean = ""
+                    if href in detailed_post_metrics and detailed_post_metrics[href].get("caption"):
+                        caption_clean = detailed_post_metrics[href]["caption"]
+
                     if not caption_clean:
-                        caption_clean = caption or f"Post by @{clean_handle}"
+                        alt = item.get("alt", "").strip()
+                        if not (alt.lower().startswith("may be an image") or alt.lower().startswith("may be a cartoon") or alt.lower().startswith("may be a graphic")):
+                            caption_clean = re.sub(r'^(?:Photo|Video)\s+by\s+.*?\s+on\s+.*?\.\s*', '', alt)
+
+                    if not caption_clean:
+                        caption_clean = "No caption provided."
 
                     hashtags = re.findall(r'#\w+', caption_clean)
                     if not hashtags:
                         hashtags = [f"#{clean_handle}"]
 
                     # Likes & Comments
-                    if href in detailed_post_metrics:
+                    if href in detailed_post_metrics and detailed_post_metrics[href]["likes"] > 0:
                         likes = detailed_post_metrics[href]["likes"]
                         comments = detailed_post_metrics[href]["comments"]
                     else:

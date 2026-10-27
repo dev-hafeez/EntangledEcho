@@ -188,12 +188,15 @@ class SocialMLEngine:
                             "predicted_reach": blended["predicted_reach"]
                         }
 
+        handle = (user_account.get("handle") or "creator").strip().lstrip("@")
+        fallback_tags = [f"#{handle}"] if handle else ["#trending"]
+
         return {
             "status": "success",
             "creator": summary,
             "optimal_recommendation": best_candidate,
             "recommended_keywords": summary["top_keywords"],
-            "recommended_hashtags": summary["top_hashtags"] or ["#creators", "#viral", "#fyp"],
+            "recommended_hashtags": summary["top_hashtags"] or fallback_tags,
             "global_model_version": self.metadata.get("trained_at", "v1.0")
         }
 

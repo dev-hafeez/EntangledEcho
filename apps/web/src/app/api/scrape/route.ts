@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Username is required" }, { status: 400 });
     }
 
-    const aiServiceUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+    const aiServiceUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8001";
 
     // Call server-side Playwright scraper
     const response = await fetch(`${aiServiceUrl}/api/v1/scrape/instagram`, {

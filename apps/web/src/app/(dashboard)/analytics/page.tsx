@@ -2,7 +2,7 @@
 
 import { useAccount } from "@/context/AccountContext";
 import { formatNumber } from "@/lib/utils";
-import { BarChart3, TrendingUp, Users, Download, Hash, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Download, Hash, CheckCircle2, Flame, Heart, MessageCircle } from "lucide-react";
 
 export default function AnalyticsPage() {
   const { activeHandle, account, posts, isRealData } = useAccount();
@@ -45,7 +45,7 @@ export default function AnalyticsPage() {
     const rows = posts
       .map(
         (p) =>
-          `"${p.id}","${p.caption.replace(/"/g, '""')}","${p.media_type}",${p.latest_metrics?.likes || 0},${p.latest_metrics?.comments || 0},"${p.permalink}"`
+          `"${p.id}","${(p.caption || "").replace(/"/g, '""')}","${p.media_type}",${p.latest_metrics?.likes || 0},${p.latest_metrics?.comments || 0},"${p.permalink}"`
       )
       .join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
@@ -59,66 +59,94 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+    <div className="space-y-7">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200/90">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Real Engagement Analytics
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+              Verified Engagement Analytics
             </h1>
-            <span
-              className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                isRealData
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                  : "bg-slate-100 text-slate-700 border-slate-300"
-              }`}
-            >
-              {isRealData ? "Live Scraped Data" : "Profile Analytics"}
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
+              Live DB Cache
             </span>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
-            Metrics aggregated directly from {posts.length} real scraped posts for @{activeHandle}
+          <p className="text-xs text-slate-500 mt-1">
+            Aggregated metrics across {posts.length} verified scraped posts for @{activeHandle}.
           </p>
         </div>
         <button
           onClick={exportCsv}
           disabled={posts.length === 0}
-          className="btn-action text-xs flex items-center gap-1.5 self-start sm:self-auto"
+          className="btn-action text-xs flex items-center gap-2 self-start sm:self-auto py-2 px-4 shadow-xs"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>Export Real Data CSV</span>
+          <span>Export Analytics CSV</span>
         </button>
       </div>
 
-      {/* Real Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 card-hover">
-          <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-2">Total Followers</div>
-          <div className="text-2xl font-bold text-slate-900">{formatNumber(totalFollowers)}</div>
-          <div className="text-xs text-slate-500 mt-1">Live from Instagram profile</div>
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="card-editorial p-5 card-hover">
+          <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>Total Followers</span>
+            <Users className="w-4 h-4 text-slate-600" />
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
+            {formatNumber(totalFollowers)}
+          </div>
+          <div className="text-xs text-slate-500 mt-1 font-mono">Live verified profile count</div>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-slate-200 card-hover">
-          <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-2">Total Likes</div>
-          <div className="text-2xl font-bold text-slate-900">{formatNumber(totalLikes)}</div>
-          <div className="text-xs text-slate-500 mt-1">Avg {avgLikesPerPost} per post</div>
+
+        <div className="card-editorial p-5 card-hover">
+          <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>Total Likes</span>
+            <Heart className="w-4 h-4 text-rose-500" />
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
+            {formatNumber(totalLikes)}
+          </div>
+          <div className="text-xs text-slate-500 mt-1 font-mono">
+            Avg {formatNumber(avgLikesPerPost)} / post
+          </div>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-slate-200 card-hover">
-          <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-2">Total Comments</div>
-          <div className="text-2xl font-bold text-slate-900">{formatNumber(totalComments)}</div>
-          <div className="text-xs text-slate-500 mt-1">Avg {avgCommentsPerPost} per post</div>
+
+        <div className="card-editorial p-5 card-hover">
+          <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>Total Comments</span>
+            <MessageCircle className="w-4 h-4 text-slate-700" />
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
+            {formatNumber(totalComments)}
+          </div>
+          <div className="text-xs text-slate-500 mt-1 font-mono">
+            Avg {formatNumber(avgCommentsPerPost)} / post
+          </div>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-slate-200 card-hover">
-          <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-2">Scraped Posts</div>
-          <div className="text-2xl font-bold text-slate-900">{posts.length}</div>
-          <div className="text-xs text-emerald-600 mt-1 font-medium">100% Verified Posts</div>
+
+        <div className="card-editorial p-5 card-hover">
+          <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>Discovered Posts</span>
+            <Flame className="w-4 h-4 text-amber-500" />
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
+            {posts.length}
+          </div>
+          <div className="text-xs text-emerald-600 mt-1 font-semibold flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5" /> 100% Genuine Media
+          </div>
         </div>
       </div>
 
-      {/* Real Content Type Breakdown */}
+      {/* Real Content Type Breakdown & Tags */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl border border-slate-200 card-hover space-y-4">
-          <h2 className="text-base font-bold text-slate-900">Actual Media Type Distribution</h2>
-          <p className="text-xs text-slate-500">Calculated from {posts.length} discovered posts</p>
+        <div className="card-editorial p-6 card-hover space-y-4">
+          <h2 className="text-base font-bold text-slate-900 tracking-tight">
+            Media Format Performance Mix
+          </h2>
+          <p className="text-xs text-slate-500">
+            Calculated across {posts.length} posts discovered for this creator.
+          </p>
 
           <div className="space-y-4 pt-2">
             {mediaTypesList.length > 0 ? (
@@ -129,30 +157,36 @@ export default function AnalyticsPage() {
                 return (
                   <div key={type} className="space-y-1.5">
                     <div className="flex justify-between text-xs font-semibold">
-                      <span className="capitalize">{type}</span>
-                      <span className="text-slate-700">
-                        {stats.count} posts ({percentage}%) • Avg {avgLikes} likes
+                      <span className="capitalize text-slate-800">{type}</span>
+                      <span className="text-slate-600 font-mono tabular-nums">
+                        {stats.count} posts ({percentage}%) • Avg {formatNumber(avgLikes)} likes
                       </span>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                       <div
-                        className="bg-[#373E3E] h-2.5 rounded-full transition-all duration-500"
+                        className="bg-[#373E3E] h-2 rounded-full transition-all duration-500"
                         style={{ width: `${percentage}%` }}
-                      ></div>
+                      />
                     </div>
                   </div>
                 );
               })
             ) : (
-              <div className="text-xs text-slate-400 py-4 text-center">No posts scraped yet.</div>
+              <div className="text-xs text-slate-400 py-4 text-center font-mono">
+                No posts available for format mix.
+              </div>
             )}
           </div>
         </div>
 
-        {/* Real Extracted Hashtags & Profile Details */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 card-hover space-y-4">
-          <h2 className="text-base font-bold text-slate-900">Extracted Hashtags & Account Data</h2>
-          <p className="text-xs text-slate-500">Real tags found in your captions</p>
+        {/* Real Extracted Hashtags & Account Data */}
+        <div className="card-editorial p-6 card-hover space-y-4">
+          <h2 className="text-base font-bold text-slate-900 tracking-tight">
+            Extracted Hashtag Clusters &amp; Volume
+          </h2>
+          <p className="text-xs text-slate-500">
+            Authentic community tags extracted from the creator&apos;s recent caption history.
+          </p>
 
           <div className="space-y-3 pt-2">
             {topHashtags.length > 0 ? (
@@ -160,33 +194,37 @@ export default function AnalyticsPage() {
                 {topHashtags.map(([tag, count]) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-mono text-slate-800"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200/80 text-xs font-mono text-slate-800"
                   >
                     <Hash className="w-3 h-3 text-slate-400" />
                     <span>{tag.replace(/^#/, "")}</span>
-                    <span className="text-[10px] bg-slate-200 px-1.5 py-0.2 rounded font-sans text-slate-600">
+                    <span className="text-[10px] bg-slate-200 px-1.5 py-0.2 rounded font-sans text-slate-700 font-bold tabular-nums">
                       {count}
                     </span>
                   </span>
                 ))}
               </div>
             ) : (
-              <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 text-xs text-slate-500 space-y-2">
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 text-xs text-slate-500 space-y-1">
                 <div className="font-semibold text-slate-700">No hashtags in recent posts</div>
-                <p>Captions on the scraped posts for @{activeHandle} did not contain hashtags.</p>
+                <p>Captions on the scraped posts for @{activeHandle} were tag-free.</p>
               </div>
             )}
 
             <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                <div className="text-slate-400">Following Count</div>
-                <div className="text-base font-bold text-slate-800 mt-0.5">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                <div className="text-slate-500 font-semibold text-[11px] uppercase tracking-wider">
+                  Following Count
+                </div>
+                <div className="text-xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
                   {formatNumber(account?.following_count || 0)}
                 </div>
               </div>
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                <div className="text-slate-400">Total Media Count</div>
-                <div className="text-base font-bold text-slate-800 mt-0.5">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                <div className="text-slate-500 font-semibold text-[11px] uppercase tracking-wider">
+                  Total Media Count
+                </div>
+                <div className="text-xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
                   {formatNumber(account?.media_count || posts.length)}
                 </div>
               </div>

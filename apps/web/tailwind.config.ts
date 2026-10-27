@@ -9,6 +9,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "monospace"],
+      },
       colors: {
         brand: {
           DEFAULT: "#373E3E",
@@ -20,21 +24,19 @@ const config: Config = {
           500: "#5d6a6a",
           600: "#485353",
           700: "#373E3E",
-          800: "#2d3333",
-          900: "#262b2b",
-          950: "#161919",
+          800: "#232828",
+          900: "#1a1e1e",
+          950: "#111414",
         },
-        accent: {
-          purple: "#7c3aed",
-          indigo: "#4f46e5",
-          pink: "#ec4899",
-          emerald: "#10b981",
+        slate: {
+          850: "#141c2e",
+          950: "#090d16",
         }
       },
       borderRadius: {
-        lg: "var(--radius, 0.5rem)",
-        md: "calc(var(--radius, 0.5rem) - 2px)",
-        sm: "calc(var(--radius, 0.5rem) - 4px)",
+        lg: "var(--radius, 0.75rem)",
+        md: "calc(var(--radius, 0.75rem) - 2px)",
+        sm: "calc(var(--radius, 0.75rem) - 4px)",
       },
     },
   },
@@ -42,3 +44,4 @@ const config: Config = {
 };
 
 export default config;
+

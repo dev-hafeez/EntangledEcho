@@ -6,7 +6,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const res = await fetch(`${AI_SERVICE_URL}/api/v1/recommend/content`, {
+    // If recommendation_type is present, route to full Algorithm 2 endpoint
+    const endpoint = body.recommendation_type
+      ? `${AI_SERVICE_URL}/api/v1/recommend`
+      : `${AI_SERVICE_URL}/api/v1/recommend/content`;
+
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -21,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data);
   } catch (err: any) {
     return NextResponse.json(
-      { error: err.message || "Failed to fetch content recommendation" },
+      { error: err.message || "Failed to fetch recommendation" },
       { status: 500 }
     );
   }

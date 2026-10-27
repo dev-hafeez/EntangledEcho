@@ -82,6 +82,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
             external_id: `real_${handle}`,
             handle: handle,
             avatar_url: accInfo.avatar_url,
+            bio: accInfo.bio,
             follower_count: accInfo.followers || 0,
             following_count: accInfo.following || 0,
             media_count: accInfo.media_count || data.posts.length,
@@ -89,6 +90,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
             status: "active",
             is_synthetic: false,
           };
+
 
           // Safeguard: Deduplicate by post_url
           const seenUrls = new Set<string>();
@@ -162,8 +164,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
             }
           }
           return;
-        } else {
-          // Profile exists but has 0 posts
+        } else if (data.account && (data.account.followers > 0 || data.account.following > 0)) {
+          // Genuine public profile with 0 posts
           const emptyAccount: SocialAccount = {
             id: `acc_real_${handle}`,
             user_id: "demo-user-1",
@@ -191,10 +193,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
                 localStorage.setItem("ee_niche_info", JSON.stringify(data.account.niche_info));
               } catch (e) {}
             }
-          } else {
-            detectNicheForAccount(emptyAccount, []);
           }
           return;
+        } else {
+          setError(`Could not retrieve posts for @${handle}. Verify the profile is public and exists.`);
         }
       } else {
         const errJson = await res.json().catch(() => ({}));

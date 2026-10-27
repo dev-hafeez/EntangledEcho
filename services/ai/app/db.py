@@ -35,9 +35,11 @@ def extract_shortcode(post_url: str) -> str:
 
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL;")
     conn.row_factory = sqlite3.Row
     return conn
+
 
 
 def init_db():
@@ -84,6 +86,93 @@ def init_db():
             )
         """)
 
+        # Optimization jobs table (SRDS 5.3 & UC06)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS optimization_jobs (
+                id TEXT PRIMARY KEY,
+                handle TEXT NOT NULL,
+                status TEXT DEFAULT 'completed',
+                horizon_days INTEGER DEFAULT 7,
+                target_posts INTEGER DEFAULT 5,
+                min_gap_hours INTEGER DEFAULT 4,
+                constraints TEXT,
+                primary_schedule TEXT,
+                alternatives TEXT,
+                schedule_confidence REAL,
+                qubo_stats TEXT,
+                created_at TEXT
+            )
+        """)
+
+        # AI Recommendations table (SRDS 5.3, 5.6.2 Algorithm 2)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS recommendations (
+                id TEXT PRIMARY KEY,
+                handle TEXT NOT NULL,
+                type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                confidence_score REAL,
+                accepted INTEGER,
+                feedback TEXT,
+                created_at TEXT
+            )
+        """)
+
+        # Content strategies & tasks (FR-22)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS content_strategies (
+                id TEXT PRIMARY KEY,
+                handle TEXT NOT NULL,
+                goal TEXT NOT NULL,
+                platform TEXT DEFAULT 'instagram',
+                horizon_days INTEGER DEFAULT 14,
+                created_at TEXT
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tasks (
+                id TEXT PRIMARY KEY,
+                strategy_id TEXT,
+                handle TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                media_type TEXT DEFAULT 'REEL',
+                due_date TEXT,
+                priority TEXT DEFAULT 'HIGH',
+                status TEXT DEFAULT 'PENDING',
+                created_at TEXT
+            )
+        """)
+
+        # Scheduled posts table (SRDS 5.3, 5.5 State Machine)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS scheduled_posts (
+                id TEXT PRIMARY KEY,
+                handle TEXT NOT NULL,
+                title TEXT,
+                caption TEXT,
+                hashtags TEXT,
+                media_type TEXT DEFAULT 'image',
+                media_url TEXT,
+                day_of_week TEXT,
+                time_slot TEXT,
+                scheduled_time TEXT,
+                status TEXT DEFAULT 'SCHEDULED',
+                created_at TEXT
+            )
+        """)
+
+        # Creator preference weights (FR-24 Feedback Loop)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS creator_preferences (
+                handle TEXT PRIMARY KEY,
+                preferred_media_types TEXT,
+                preferred_hashtag_clusters TEXT,
+                preferred_tone TEXT DEFAULT 'ENGAGING',
+                updated_at TEXT
+            )
+        """)
+
         # Deduplicate any existing duplicate rows before creating unique index
         cursor.execute("""
             DELETE FROM scraped_posts 
@@ -98,9 +187,11 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_posts_handle ON scraped_posts(handle)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_posts_posted_at ON scraped_posts(posted_at)")
         cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_handle_url ON scraped_posts(handle, post_url)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sched_handle ON scheduled_posts(handle)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_opt_handle ON optimization_jobs(handle)")
 
         conn.commit()
-    logger.info(f"Database initialized and deduplicated at {DB_PATH}")
+    logger.info(f"Database initialized with all SRDS tables and deduplicated at {DB_PATH}")
 
 
 # Auto-initialize tables on module import
@@ -144,12 +235,25 @@ def get_cached_profile_and_posts(handle: str) -> Optional[Dict[str, Any]]:
             except Exception:
                 topics = []
 
+            raw_cap = (pr["caption"] or "").strip()
+            if (
+                not raw_cap
+                or raw_cap.lower().startswith("may be an image")
+                or raw_cap.lower().startswith("may be a graphic")
+                or raw_cap.lower().startswith("may be a cartoon")
+                or f"@{clean_handle} on instagram" in raw_cap.lower()
+                or f"@{clean_handle} post on instagram" in raw_cap.lower()
+            ):
+                cleaned_cap = "No caption provided."
+            else:
+                cleaned_cap = raw_cap
+
             posts.append({
                 "id": pr["id"],
                 "post_url": pr["post_url"],
                 "media_url": pr["media_url"],
                 "media_type": pr["media_type"],
-                "caption": pr["caption"],
+                "caption": cleaned_cap,
                 "hashtags": hashtags,
                 "posted_at": pr["posted_at"],
                 "perf_score": pr["perf_score"],
@@ -267,7 +371,12 @@ def save_profile_and_posts(
         cursor.execute("SELECT COUNT(DISTINCT post_url) FROM scraped_posts WHERE LOWER(handle) = ?", (clean_handle,))
         actual_post_count = cursor.fetchone()[0]
 
-        # Upsert profile with accurate distinct media count
+        # Avoid polluting database with empty 0/0 shells
+        if actual_post_count == 0 and account_info.get("followers", 0) == 0:
+            logger.warning(f"Aborting profile save for @{clean_handle}: 0 followers and 0 posts.")
+            return
+
+        # Upsert profile with accurate distinct media count and protect existing metrics
         cursor.execute("""
             INSERT INTO scraped_profiles (
                 handle, platform, followers, following, media_count,
@@ -275,11 +384,11 @@ def save_profile_and_posts(
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(handle) DO UPDATE SET
                 platform = excluded.platform,
-                followers = excluded.followers,
-                following = excluded.following,
-                media_count = excluded.media_count,
+                followers = CASE WHEN excluded.followers > 0 THEN excluded.followers ELSE scraped_profiles.followers END,
+                following = CASE WHEN excluded.following > 0 THEN excluded.following ELSE scraped_profiles.following END,
+                media_count = CASE WHEN excluded.media_count > 0 THEN excluded.media_count ELSE scraped_profiles.media_count END,
                 avatar_url = COALESCE(excluded.avatar_url, scraped_profiles.avatar_url),
-                bio = excluded.bio,
+                bio = CASE WHEN LENGTH(excluded.bio) > 0 THEN excluded.bio ELSE scraped_profiles.bio END,
                 niche = COALESCE(excluded.niche, scraped_profiles.niche),
                 niche_info = COALESCE(excluded.niche_info, scraped_profiles.niche_info),
                 last_scraped_at = excluded.last_scraped_at
@@ -341,5 +450,146 @@ def delete_cached_profile(handle: str) -> bool:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM scraped_posts WHERE LOWER(handle) = ?", (clean_handle,))
         cursor.execute("DELETE FROM scraped_profiles WHERE LOWER(handle) = ?", (clean_handle,))
+        cursor.execute("DELETE FROM scheduled_posts WHERE LOWER(handle) = ?", (clean_handle,))
+        cursor.execute("DELETE FROM optimization_jobs WHERE LOWER(handle) = ?", (clean_handle,))
         conn.commit()
         return cursor.rowcount > 0
+
+
+def save_optimization_job(
+    job_id: str,
+    handle: str,
+    constraints: Dict[str, Any],
+    primary_schedule: Dict[str, Any],
+    alternatives: List[Dict[str, Any]],
+    schedule_confidence: float,
+    qubo_stats: Dict[str, Any]
+) -> None:
+    """Stores completed quantum-inspired optimization run."""
+    clean_handle = handle.strip().lstrip("@").lower()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO optimization_jobs (
+                id, handle, status, horizon_days, target_posts, min_gap_hours,
+                constraints, primary_schedule, alternatives, schedule_confidence, qubo_stats, created_at
+            ) VALUES (?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            job_id,
+            clean_handle,
+            constraints.get("horizon_days", 7),
+            constraints.get("target_posts_per_week", 5),
+            constraints.get("min_gap_hours", 4),
+            json.dumps(constraints),
+            json.dumps(primary_schedule),
+            json.dumps(alternatives),
+            schedule_confidence,
+            json.dumps(qubo_stats),
+            now_iso
+        ))
+        conn.commit()
+
+
+def get_latest_optimization_job(handle: str) -> Optional[Dict[str, Any]]:
+    """Retrieves most recent optimization job for creator."""
+    clean_handle = handle.strip().lstrip("@").lower()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM optimization_jobs
+            WHERE LOWER(handle) = ?
+            ORDER BY created_at DESC LIMIT 1
+        """, (clean_handle,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return {
+            "id": row["id"],
+            "handle": row["handle"],
+            "status": row["status"],
+            "constraints": json.loads(row["constraints"]) if row["constraints"] else {},
+            "primary_schedule": json.loads(row["primary_schedule"]) if row["primary_schedule"] else {},
+            "alternatives": json.loads(row["alternatives"]) if row["alternatives"] else [],
+            "schedule_confidence": row["schedule_confidence"],
+            "qubo_stats": json.loads(row["qubo_stats"]) if row["qubo_stats"] else {},
+            "created_at": row["created_at"]
+        }
+
+
+def list_scheduled_posts(handle: str) -> List[Dict[str, Any]]:
+    """Lists all planned posts from scheduled_posts table."""
+    clean_handle = handle.strip().lstrip("@").lower()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM scheduled_posts
+            WHERE LOWER(handle) = ?
+            ORDER BY scheduled_time ASC, created_at DESC
+        """, (clean_handle,))
+        rows = cursor.fetchall()
+        result = []
+        for r in rows:
+            hashtags = []
+            if r["hashtags"]:
+                try:
+                    hashtags = json.loads(r["hashtags"])
+                except Exception:
+                    pass
+            result.append({
+                "id": r["id"],
+                "handle": r["handle"],
+                "title": r["title"],
+                "caption": r["caption"],
+                "hashtags": hashtags,
+                "media_type": r["media_type"],
+                "media_url": r["media_url"],
+                "day_of_week": r["day_of_week"],
+                "time_slot": r["time_slot"],
+                "scheduled_time": r["scheduled_time"],
+                "status": r["status"],
+                "created_at": r["created_at"]
+            })
+        return result
+
+
+def add_scheduled_post(post_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Adds a scheduled post following SRDS 5.5 state machine (default SCHEDULED)."""
+    clean_handle = post_data.get("handle", "user").strip().lstrip("@").lower()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    post_id = post_data.get("id") or f"sched_{clean_handle}_{int(datetime.now().timestamp() * 1000)}"
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO scheduled_posts (
+                id, handle, title, caption, hashtags, media_type, media_url,
+                day_of_week, time_slot, scheduled_time, status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            post_id,
+            clean_handle,
+            post_data.get("title", "Scheduled Post"),
+            post_data.get("caption", ""),
+            json.dumps(post_data.get("hashtags", [])),
+            post_data.get("media_type", "image"),
+            post_data.get("media_url"),
+            post_data.get("day_of_week"),
+            post_data.get("time_slot"),
+            post_data.get("scheduled_time"),
+            post_data.get("status", "SCHEDULED"),
+            now_iso
+        ))
+        conn.commit()
+
+    return {"status": "success", "id": post_id}
+
+
+def delete_scheduled_post(post_id: str) -> bool:
+    """Deletes a post from scheduled_posts table."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM scheduled_posts WHERE id = ?", (post_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+

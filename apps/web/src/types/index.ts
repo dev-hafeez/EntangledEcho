@@ -29,6 +29,7 @@ export interface SocialAccount {
   external_id: string;
   handle: string;
   avatar_url?: string;
+  bio?: string;
   follower_count?: number;
   following_count?: number;
   media_count?: number;
@@ -38,6 +39,7 @@ export interface SocialAccount {
   status: "active" | "needs_reauth" | "disabled";
   is_synthetic: boolean;
 }
+
 
 export interface EngagementMetric {
   id: string;

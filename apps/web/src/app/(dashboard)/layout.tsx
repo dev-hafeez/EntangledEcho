@@ -5,13 +5,14 @@ import { AccountProvider, useAccount } from "@/context/AccountContext";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { ProfileGate } from "@/components/auth/ProfileGate";
+import { ProfileLoadingModal } from "@/components/layout/ProfileLoadingModal";
 
 function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
   const { activeHandle, activePlatform, ingestHandleOrUrl, isLoading } = useAccount();
 
   return (
     <ProfileGate>
-      <div className="flex min-h-screen bg-slate-50">
+      <div className="flex min-h-screen bg-[#FBFBFB]">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <Topbar
@@ -25,6 +26,7 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+      <ProfileLoadingModal isOpen={isLoading} handle={activeHandle} />
     </ProfileGate>
   );
 }
@@ -42,3 +44,4 @@ export default function DashboardLayout({
     </AuthProvider>
   );
 }
+
