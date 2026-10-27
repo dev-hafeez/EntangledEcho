@@ -166,10 +166,12 @@ def build_schedule_qubo(
     # All active candidate variables (excluding blackout slots)
     active_keys = [k for k in v_scores.keys() if k not in blackout_keys]
 
-    # Constraint penalty coefficients (Section 6.1): A = B = 2.5 * max(v) * K
+    # Constraint penalty coefficients (rescaled relative to max(v)):
+    # Verified via Phase 7 sweep: A = 1.2 * max_v, B = 2.0 * max_v
+    # Avoids constraint dominance where penalties drown out slot value differences.
     max_v = max([v_scores[k] for k in active_keys], default=1.0)
-    A = max(2.5 * max_v * K, 10.0)
-    B = max(3.0 * max_v * K, 12.0)
+    A = round(1.2 * max_v, 4)
+    B = round(2.0 * max_v, 4)
 
     # 1. Linear terms: h_s = -v_s + A(1 - 2K)
     linear: Dict[str, float] = {}
@@ -208,8 +210,9 @@ def run_qubo_optimization(
     target_posts_per_week: int = 5,
     min_gap_hours: int = 4,
     blackout_slots: Optional[List[Dict[str, Any]]] = None,
-    num_reads: int = 250,
-    bootstrap_rounds: int = 10,
+    num_reads: int = 100,
+    num_sweeps: int = 500,
+    bootstrap_rounds: int = 5,
     seed: Optional[int] = 42
 ) -> Dict[str, Any]:
     """
@@ -243,6 +246,7 @@ def run_qubo_optimization(
     sampleset = sampler.sample(
         bqm,
         num_reads=num_reads,
+        num_sweeps=num_sweeps,
         seed=seed
     )
 

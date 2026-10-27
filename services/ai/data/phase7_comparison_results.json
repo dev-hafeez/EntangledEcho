@@ -1,0 +1,261 @@
+{
+  "seeds": [
+    42,
+    123,
+    456,
+    789,
+    1024
+  ],
+  "variant_1_independent_slots": {
+    "exact_optimum": 4.4296,
+    "benchmark_summary": {
+      "Exact_MILP": {
+        "score_mean": 4.4296,
+        "score_std": 0.0,
+        "optimality_gap_pct": 0.0,
+        "runtime_ms_mean": 30.6,
+        "runtime_ms_std": 0.0,
+        "feasibility_pct": 100.0,
+        "scores": [
+          4.4296,
+          4.4296,
+          4.4296,
+          4.4296,
+          4.4296
+        ],
+        "runtimes_ms": [
+          30.6,
+          30.6,
+          30.6,
+          30.6,
+          30.6
+        ]
+      },
+      "Tuned_QUBO_SA": {
+        "score_mean": 4.342,
+        "score_std": 0.0507,
+        "optimality_gap_pct": 1.98,
+        "runtime_ms_mean": 738.8,
+        "runtime_ms_std": 46.6,
+        "feasibility_pct": 100.0,
+        "scores": [
+          4.2931,
+          4.3723,
+          4.4129,
+          4.3556,
+          4.2761
+        ],
+        "runtimes_ms": [
+          763.8,
+          752.2,
+          789.2,
+          652.1,
+          736.6
+        ]
+      },
+      "Untuned_QUBO_SA": {
+        "score_mean": 3.6359,
+        "score_std": 0.2374,
+        "optimality_gap_pct": 17.92,
+        "runtime_ms_mean": 1372.1,
+        "runtime_ms_std": 89.9,
+        "feasibility_pct": 100.0,
+        "scores": [
+          3.3571,
+          3.4399,
+          4.0356,
+          3.7125,
+          3.6344
+        ],
+        "runtimes_ms": [
+          1374.7,
+          1432.2,
+          1502.0,
+          1249.8,
+          1301.7
+        ]
+      },
+      "Greedy_Baseline": {
+        "score_mean": 4.4296,
+        "score_std": 0.0,
+        "optimality_gap_pct": 0.0,
+        "runtime_ms_mean": 0.1,
+        "runtime_ms_std": 0.0,
+        "feasibility_pct": 100.0,
+        "scores": [
+          4.4296,
+          4.4296,
+          4.4296,
+          4.4296,
+          4.4296
+        ],
+        "runtimes_ms": [
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ]
+      },
+      "Classical_SA": {
+        "score_mean": 4.4263,
+        "score_std": 0.0067,
+        "optimality_gap_pct": 0.08,
+        "runtime_ms_mean": 78.2,
+        "runtime_ms_std": 6.6,
+        "feasibility_pct": 100.0,
+        "scores": [
+          4.4296,
+          4.4296,
+          4.4296,
+          4.4296,
+          4.4129
+        ],
+        "runtimes_ms": [
+          79.4,
+          68.9,
+          89.2,
+          77.8,
+          75.6
+        ]
+      },
+      "Random_Feasible": {
+        "score_mean": 2.1449,
+        "score_std": 0.1363,
+        "optimality_gap_pct": 51.58,
+        "runtime_ms_mean": 0.1,
+        "runtime_ms_std": 0.1,
+        "feasibility_pct": 100.0,
+        "scores": [
+          1.9458,
+          2.0422,
+          2.277,
+          2.1561,
+          2.3034
+        ],
+        "runtimes_ms": [
+          0.3,
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ]
+      }
+    }
+  },
+  "variant_2_pairwise_interactions": {
+    "exact_optimum": 8.7077,
+    "benchmark_summary": {
+      "Exact_BB": {
+        "score_mean": 8.7077,
+        "score_std": 0.0,
+        "optimality_gap_pct": 0.0,
+        "runtime_ms_mean": 123562.2,
+        "runtime_ms_std": 0.0,
+        "feasibility_pct": 100.0,
+        "scores": [
+          8.7077,
+          8.7077,
+          8.7077,
+          8.7077,
+          8.7077
+        ],
+        "runtimes_ms": [
+          123562.2,
+          123562.2,
+          123562.2,
+          123562.2,
+          123562.2
+        ]
+      },
+      "Tuned_QUBO_SA": {
+        "score_mean": 8.0078,
+        "score_std": 0.0767,
+        "optimality_gap_pct": 8.04,
+        "runtime_ms_mean": 1407.7,
+        "runtime_ms_std": 91.3,
+        "feasibility_pct": 100.0,
+        "scores": [
+          8.0232,
+          8.0133,
+          7.9462,
+          7.9173,
+          8.1389
+        ],
+        "runtimes_ms": [
+          1321.3,
+          1576.8,
+          1417.8,
+          1336.2,
+          1386.4
+        ]
+      },
+      "Greedy_Baseline": {
+        "score_mean": 6.8296,
+        "score_std": 0.0,
+        "optimality_gap_pct": 21.57,
+        "runtime_ms_mean": 0.1,
+        "runtime_ms_std": 0.0,
+        "feasibility_pct": 100.0,
+        "scores": [
+          6.8296,
+          6.8296,
+          6.8296,
+          6.8296,
+          6.8296
+        ],
+        "runtimes_ms": [
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ]
+      },
+      "Classical_SA": {
+        "score_mean": 8.6095,
+        "score_std": 0.146,
+        "optimality_gap_pct": 1.13,
+        "runtime_ms_mean": 217.9,
+        "runtime_ms_std": 13.0,
+        "feasibility_pct": 100.0,
+        "scores": [
+          8.7077,
+          8.3313,
+          8.7077,
+          8.5931,
+          8.7077
+        ],
+        "runtimes_ms": [
+          224.8,
+          206.7,
+          239.1,
+          215.7,
+          203.3
+        ]
+      },
+      "Random_Feasible": {
+        "score_mean": 5.0349,
+        "score_std": 1.2754,
+        "optimality_gap_pct": 42.18,
+        "runtime_ms_mean": 0.1,
+        "runtime_ms_std": 0.1,
+        "feasibility_pct": 100.0,
+        "scores": [
+          2.9458,
+          5.0422,
+          6.677,
+          4.5561,
+          5.9534
+        ],
+        "runtimes_ms": [
+          0.3,
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ]
+      }
+    }
+  }
+}
