@@ -948,7 +948,7 @@ export default function RecommendationsPage() {
                 Simulate & Predict Engagement for Next Post Draft
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Evaluates Model 1 (Global Gradient Boosting Regressor) and blends with Model 2 (Personal Bayesian Profile) before publishing.
+                Combines Model 1 (Global Heuristic Baseline Prior) with Model 2 (Personal Creator Empirical Profile) for cold-start and niche calibration.
               </p>
             </div>
 

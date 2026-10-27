@@ -37,6 +37,7 @@ def extract_shortcode(post_url: str) -> str:
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
     conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA busy_timeout=5000;")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -79,6 +80,7 @@ def init_db():
                 likes INTEGER DEFAULT 0,
                 comments INTEGER DEFAULT 0,
                 reach INTEGER DEFAULT 0,
+                is_real_metrics INTEGER DEFAULT 0,
                 sentiment REAL DEFAULT 0.5,
                 topics TEXT,
                 created_at TEXT,
@@ -190,6 +192,12 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_sched_handle ON scheduled_posts(handle)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_opt_handle ON optimization_jobs(handle)")
 
+        # Migration for is_real_metrics
+        try:
+            cursor.execute("ALTER TABLE scraped_posts ADD COLUMN is_real_metrics INTEGER DEFAULT 0")
+        except Exception:
+            pass
+
         conn.commit()
     logger.info(f"Database initialized with all SRDS tables and deduplicated at {DB_PATH}")
 
@@ -260,6 +268,7 @@ def get_cached_profile_and_posts(handle: str) -> Optional[Dict[str, Any]]:
                 "likes": pr["likes"],
                 "comments": pr["comments"],
                 "reach": pr["reach"],
+                "is_real_metrics": bool(pr["is_real_metrics"]) if "is_real_metrics" in pr.keys() else False,
                 "sentiment": pr["sentiment"],
                 "topics": topics
             })
@@ -339,12 +348,13 @@ def save_profile_and_posts(
                 INSERT INTO scraped_posts (
                     id, handle, post_url, media_url, media_type, caption,
                     hashtags, posted_at, perf_score, likes, comments,
-                    reach, sentiment, topics, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    reach, is_real_metrics, sentiment, topics, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(handle, post_url) DO UPDATE SET
                     likes = excluded.likes,
                     comments = excluded.comments,
                     reach = excluded.reach,
+                    is_real_metrics = excluded.is_real_metrics,
                     perf_score = excluded.perf_score,
                     sentiment = excluded.sentiment,
                     media_url = COALESCE(excluded.media_url, scraped_posts.media_url),
@@ -362,6 +372,7 @@ def save_profile_and_posts(
                 p.get("likes", 0),
                 p.get("comments", 0),
                 p.get("reach", 0),
+                1 if p.get("is_real_metrics") else 0,
                 p.get("sentiment", 0.5),
                 json.dumps(p.get("topics", [])),
                 now_iso
@@ -420,8 +431,13 @@ def list_all_cached_profiles() -> List[Dict[str, Any]]:
         cursor.execute("""
             SELECT 
                 p.*,
-                (SELECT COUNT(DISTINCT post_url) FROM scraped_posts WHERE LOWER(handle) = LOWER(p.handle)) as post_count
+                COALESCE(cnt.post_count, 0) as post_count
             FROM scraped_profiles p
+            LEFT JOIN (
+                SELECT LOWER(handle) as l_handle, COUNT(DISTINCT post_url) as post_count
+                FROM scraped_posts
+                GROUP BY LOWER(handle)
+            ) cnt ON LOWER(p.handle) = cnt.l_handle
             ORDER BY p.last_scraped_at DESC
         """)
         rows = cursor.fetchall()

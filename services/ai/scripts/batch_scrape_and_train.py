@@ -133,7 +133,8 @@ def sync_db_to_global_dataset():
     # Query all posts and their profile follower count
     query = """
         SELECT p.handle, p.caption, p.media_type, p.hashtags, p.posted_at, 
-               p.likes, p.comments, p.reach, pr.followers, pr.niche
+               p.likes, p.comments, p.reach, pr.followers, pr.niche,
+               COALESCE(p.is_real_metrics, 0) as is_real_metrics
         FROM scraped_posts p
         JOIN scraped_profiles pr ON p.handle = pr.handle
     """
@@ -148,7 +149,7 @@ def sync_db_to_global_dataset():
 
     new_records = []
     for row in rows:
-        handle, caption, media_type, hashtags_raw, posted_at, likes, comments, reach, followers, niche = row
+        handle, caption, media_type, hashtags_raw, posted_at, likes, comments, reach, followers, niche, is_real_metrics = row
         try:
             tags = json.loads(hashtags_raw) if hashtags_raw else []
         except Exception:
@@ -179,6 +180,7 @@ def sync_db_to_global_dataset():
             "comments": comments_val,
             "reach": reach_val,
             "followers": followers_val,
+            "is_real_metrics": bool(is_real_metrics),
             "engagement_rate": engagement_rate,
             **feats
         }

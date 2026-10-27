@@ -20,8 +20,11 @@ from app.ml.personal_model import CreatorPersonalModel
 
 logger = logging.getLogger(__name__)
 
+import json
+
 CURRENT_DIR = Path(__file__).resolve().parent
 MODEL_PATH = CURRENT_DIR / "saved_models" / "global_engagement_model.joblib"
+METADATA_PATH = CURRENT_DIR / "saved_models" / "model_metadata.json"
 
 
 class SocialMLEngine:
@@ -40,12 +43,17 @@ class SocialMLEngine:
         try:
             payload = joblib.load(MODEL_PATH)
             self.global_model = payload.get("model")
-            self.metadata = {
-                "trained_at": payload.get("trained_at"),
-                "metrics": payload.get("metrics"),
-                "feature_importances": payload.get("feature_importances", {})
-            }
-            logger.info("Successfully loaded Global Engagement Model into memory.")
+            if METADATA_PATH.exists():
+                with open(METADATA_PATH) as f:
+                    self.metadata = json.load(f)
+            else:
+                self.metadata = {
+                    "role": "heuristic_prior",
+                    "trained_at": payload.get("trained_at"),
+                    "metrics": payload.get("metrics_raw", {}),
+                    "feature_importances": payload.get("feature_importances", {})
+                }
+            logger.info("Successfully loaded Global Engagement Heuristic Prior into memory.")
         except Exception as e:
             logger.error(f"Error loading global model: {e}")
 

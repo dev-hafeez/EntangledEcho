@@ -193,6 +193,7 @@ def generate_training_sample(creator_meta: dict, post_dt: datetime) -> dict:
         "likes": likes,
         "comments": comments,
         "followers": followers,
+        "is_real_metrics": False,
         "engagement_rate": final_rate,
         **features
     }

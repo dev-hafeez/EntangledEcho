@@ -315,11 +315,13 @@ async def scrape_instagram_profile_and_posts(
                     if href in detailed_post_metrics and detailed_post_metrics[href]["likes"] > 0:
                         likes = detailed_post_metrics[href]["likes"]
                         comments = detailed_post_metrics[href]["comments"]
+                        is_real_metrics = True
                     else:
                         # Follower-proportional realistic engagement (2-5% rate)
                         rate = 0.025 + ((idx * 7) % 25) / 1000.0
                         likes = max(12, int(followers * rate))
                         comments = max(2, int(likes * 0.04))
+                        is_real_metrics = False
 
                     est_reach = max(likes * 6, int(followers * 0.25), 150)
                     weighted_eng = likes * 1.0 + comments * 3.0
@@ -337,6 +339,7 @@ async def scrape_instagram_profile_and_posts(
                         "likes": likes,
                         "comments": comments,
                         "reach": est_reach,
+                        "is_real_metrics": is_real_metrics,
                         "sentiment": 0.5,
                         "topics": [hashtags[0]] if hashtags else ["Creator Post"]
                     })

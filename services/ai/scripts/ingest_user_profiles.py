@@ -389,6 +389,7 @@ async def scrape_single_profile(page, handle: str) -> dict:
                 "likes": likes,
                 "comments": comments,
                 "reach": reach,
+                "is_real_metrics": False,
                 "sentiment": 0.5,
                 "topics": [hashtags[0]]
             })
