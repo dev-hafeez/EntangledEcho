@@ -1,58 +1,58 @@
 {
   "model_name": "Global Instagram Engagement Prior",
   "role": "heuristic_prior",
-  "description": "Heuristic Baseline Prior (relabeled from predictive model: explains only 3.4% raw variance on held-out creators; retained as Bayesian prior for creator cold-start slots)",
+  "description": "Heuristic Baseline Prior (relabeled from predictive model: explains only 0.0% raw variance on held-out creators; retained as Bayesian prior for creator cold-start slots)",
   "algorithm": "HistGradientBoostingRegressor",
-  "total_dataset_rows": 10454,
-  "real_metrics_rows": 1769,
-  "synthetic_formula_rows": 8685,
-  "total_unique_handles": 855,
-  "trained_handles": 684,
-  "test_handles": 171,
-  "train_samples": 1419,
-  "test_samples": 350,
+  "total_dataset_rows": 10292,
+  "real_metrics_rows": 1622,
+  "synthetic_formula_rows": 8670,
+  "total_unique_handles": 824,
+  "trained_handles": 659,
+  "test_handles": 165,
+  "train_samples": 1295,
+  "test_samples": 327,
   "split_method": "GroupShuffleSplit (grouped by handle, 0% handle overlap)",
   "target_definition": "((likes + comments) / followers) * 100 (percentage of followers engaged, calculated purely from real fields)",
   "evaluation_held_out_handles": {
     "predict_mean_baseline": {
-      "r2_score": -0.0037,
-      "mae_percentage": 18.219,
-      "rmse": 101.016
+      "r2_score": -0.0559,
+      "mae_percentage": 10.386,
+      "rmse": 21.095
     },
     "predict_median_baseline": {
-      "r2_score": -0.0194,
-      "mae_percentage": 14.422,
-      "rmse": 101.803
+      "r2_score": -0.0385,
+      "mae_percentage": 4.485,
+      "rmse": 20.921
     },
     "followers_only_linear_model": {
-      "r2_score": 0.0623,
-      "mae_percentage": 18.358,
-      "rmse": 97.641
+      "r2_score": -0.3737,
+      "mae_percentage": 12.7,
+      "rmse": 24.062
     },
     "model_1_hgbr": {
-      "r2_score_raw": 0.0337,
-      "mae_percentage_raw": 13.904,
-      "rmse_raw": 99.119,
-      "r2_score_log": 0.3749,
-      "mae_log": 0.707,
-      "rmse_log": 0.972
+      "r2_score_raw": -0.0121,
+      "mae_percentage_raw": 4.671,
+      "rmse_raw": 20.653,
+      "r2_score_log": 0.0514,
+      "mae_log": 0.705,
+      "rmse_log": 0.966
     }
   },
   "feature_importances": {
-    "log_followers": 0.6061,
-    "hashtag_count": 0.1439,
-    "hour_cos": 0.0772,
-    "hour_sin": 0.0334,
-    "caption_length_chars": 0.03,
-    "day_sin": 0.027,
-    "caption_word_count": 0.0245,
-    "sentiment_neg": 0.0221,
-    "day_cos": 0.0128,
-    "media_type_reel": 0.0076,
-    "media_type_image": 0.006,
-    "sentiment_pos": 0.0049,
-    "sentiment_compound": 0.0046,
+    "log_followers": 0.5096,
+    "hashtag_count": 0.2625,
+    "day_sin": 0.0512,
+    "hour_sin": 0.0347,
+    "hour_cos": 0.027,
+    "caption_word_count": 0.0265,
+    "caption_length_chars": 0.0261,
+    "day_cos": 0.0203,
+    "sentiment_neg": 0.0102,
+    "media_type_reel": 0.0094,
+    "media_type_image": 0.009,
+    "sentiment_compound": 0.0081,
+    "sentiment_pos": 0.0053,
     "media_type_carousel": 0.0
   },
-  "trained_at": "2026-10-27T20:05:53.595977+00:00"
+  "trained_at": "2026-10-27T21:00:40.348237+00:00"
 }

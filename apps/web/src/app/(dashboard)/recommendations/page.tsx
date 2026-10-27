@@ -610,6 +610,19 @@ export default function RecommendationsPage() {
                     <strong>{optimizationResult.qubo_stats?.execution_time_ms || 2800} ms</strong>
                   </div>
                 </div>
+
+                {optimizationResult.timing_message && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-[11px]">
+                    <span className="font-semibold text-slate-700">Timing Verification:</span>
+                    <span className={`px-2 py-0.5 rounded-full border font-medium ${
+                      optimizationResult.timing_status === "verified"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}>
+                      {optimizationResult.timing_message}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -246,7 +246,21 @@ async def scrape_instagram_profile_and_posts(
                         p_data = await sub_page.evaluate("""() => {
                             const ogTitle = document.querySelector('meta[property="og:title"]')?.content || '';
                             const ogDesc = document.querySelector('meta[property="og:description"]')?.content || '';
-                            return { ogTitle, ogDesc };
+                            const timeEl = document.querySelector('time[datetime]')?.getAttribute('datetime') || 
+                                           document.querySelector('time')?.getAttribute('datetime') || '';
+                            const articleTime = document.querySelector('meta[property="article:published_time"]')?.content || '';
+                            
+                            let jsonLdTime = '';
+                            const ldScripts = document.querySelectorAll('script[type="application/ld+json"]');
+                            for (const s of ldScripts) {
+                                try {
+                                    const parsed = JSON.parse(s.textContent || '{}');
+                                    if (parsed.uploadDate) { jsonLdTime = parsed.uploadDate; break; }
+                                    if (parsed.dateCreated) { jsonLdTime = parsed.dateCreated; break; }
+                                    if (parsed.datePublished) { jsonLdTime = parsed.datePublished; break; }
+                                } catch (e) {}
+                            }
+                            return { ogTitle, ogDesc, timeEl, articleTime, jsonLdTime };
                         }""")
                         p_desc = p_data.get("ogDesc", "")
                         p_title = p_data.get("ogTitle", "")
@@ -271,10 +285,25 @@ async def scrape_instagram_profile_and_posts(
                             if m_desc and len(m_desc.group(1).strip()) > 0:
                                 real_cap = m_desc.group(1).strip()
 
+                        # Extract publish timestamp from time element, meta tag, or JSON-LD
+                        real_posted_at = None
+                        posted_at_is_real = False
+                        for candidate in [p_data.get("timeEl"), p_data.get("articleTime"), p_data.get("jsonLdTime")]:
+                            if candidate and isinstance(candidate, str) and len(candidate) >= 10:
+                                try:
+                                    parsed_dt = datetime.fromisoformat(candidate.replace("Z", "+00:00"))
+                                    real_posted_at = parsed_dt.isoformat()
+                                    posted_at_is_real = True
+                                    break
+                                except Exception:
+                                    pass
+
                         return post_href, {
                             "likes": p_likes,
                             "comments": p_comments,
-                            "caption": real_cap
+                            "caption": real_cap,
+                            "posted_at": real_posted_at,
+                            "posted_at_is_real": posted_at_is_real
                         }
                     except Exception:
                         return post_href, {}
@@ -327,6 +356,12 @@ async def scrape_instagram_profile_and_posts(
                     weighted_eng = likes * 1.0 + comments * 3.0
                     perf_score = min(0.99, max(0.25, round((weighted_eng / est_reach) * 2.8, 3)))
 
+                    post_timestamp = datetime.now(timezone.utc).isoformat()
+                    posted_at_is_real = False
+                    if href in detailed_post_metrics and detailed_post_metrics[href].get("posted_at_is_real"):
+                        post_timestamp = detailed_post_metrics[href]["posted_at"]
+                        posted_at_is_real = True
+
                     results.append({
                         "id": f"post_{shortcode}",
                         "post_url": href,
@@ -334,7 +369,8 @@ async def scrape_instagram_profile_and_posts(
                         "media_type": item.get("type", "image"),
                         "caption": caption_clean,
                         "hashtags": hashtags[:5],
-                        "posted_at": datetime.now(timezone.utc).isoformat(),
+                        "posted_at": post_timestamp,
+                        "posted_at_is_real": posted_at_is_real,
                         "perf_score": perf_score,
                         "likes": likes,
                         "comments": comments,

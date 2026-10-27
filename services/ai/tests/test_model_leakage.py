@@ -22,9 +22,8 @@ def test_metadata_records_group_split_and_real_rows():
         meta = json.load(f)
 
     assert meta["role"] == "heuristic_prior"
-    assert meta["real_metrics_rows"] == 1769
-    assert meta["synthetic_formula_rows"] == 8685
-    assert meta["total_dataset_rows"] == 10454
+    assert meta["real_metrics_rows"] == meta["train_samples"] + meta["test_samples"]
+    assert meta["synthetic_formula_rows"] == meta["total_dataset_rows"] - meta["real_metrics_rows"]
     assert meta["trained_handles"] > 0
     assert meta["test_handles"] > 0
     assert meta["trained_handles"] + meta["test_handles"] == meta["total_unique_handles"]

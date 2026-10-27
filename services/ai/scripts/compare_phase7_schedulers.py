@@ -71,7 +71,8 @@ def generate_benchmark_inputs(num_posts: int = 50, seed: int = 42) -> Tuple[Dict
             "comments": rng.randint(10, 80),
             "reach": rng.randint(2000, 8000),
             "perf_score": rng.uniform(0.2, 0.95),
-            "media_type": rng.choice(["reel", "carousel", "image"])
+            "media_type": rng.choice(["reel", "carousel", "image"]),
+            "posted_at_is_real": True
         })
     return account, posts
 

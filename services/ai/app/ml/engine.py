@@ -193,7 +193,9 @@ class SocialMLEngine:
                             "recommended_day": day_names[candidate_day],
                             "recommended_hour": f"{candidate_hour:02d}:00 UTC",
                             "predicted_engagement_rate": score,
-                            "predicted_reach": blended["predicted_reach"]
+                            "predicted_reach": blended["predicted_reach"],
+                            "timing_status": summary["timing_status"],
+                            "timing_message": summary["timing_message"]
                         }
 
         handle = (user_account.get("handle") or "creator").strip().lstrip("@")
@@ -203,6 +205,7 @@ class SocialMLEngine:
             "status": "success",
             "creator": summary,
             "optimal_recommendation": best_candidate,
+            "timing_basis": summary["timing_message"],
             "recommended_keywords": summary["top_keywords"],
             "recommended_hashtags": summary["top_hashtags"] or fallback_tags,
             "global_model_version": self.metadata.get("trained_at", "v1.0")

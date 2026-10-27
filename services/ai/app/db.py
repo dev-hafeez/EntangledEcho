@@ -76,6 +76,7 @@ def init_db():
                 caption TEXT,
                 hashtags TEXT,
                 posted_at TEXT,
+                posted_at_is_real INTEGER DEFAULT 0,
                 perf_score REAL,
                 likes INTEGER DEFAULT 0,
                 comments INTEGER DEFAULT 0,
@@ -198,6 +199,12 @@ def init_db():
         except Exception:
             pass
 
+        # Migration for posted_at_is_real
+        try:
+            cursor.execute("ALTER TABLE scraped_posts ADD COLUMN posted_at_is_real INTEGER DEFAULT 0")
+        except Exception:
+            pass
+
         conn.commit()
     logger.info(f"Database initialized with all SRDS tables and deduplicated at {DB_PATH}")
 
@@ -269,6 +276,7 @@ def get_cached_profile_and_posts(handle: str) -> Optional[Dict[str, Any]]:
                 "comments": pr["comments"],
                 "reach": pr["reach"],
                 "is_real_metrics": bool(pr["is_real_metrics"]) if "is_real_metrics" in pr.keys() else False,
+                "posted_at_is_real": bool(pr["posted_at_is_real"]) if "posted_at_is_real" in pr.keys() else False,
                 "sentiment": pr["sentiment"],
                 "topics": topics
             })
@@ -347,14 +355,16 @@ def save_profile_and_posts(
             cursor.execute("""
                 INSERT INTO scraped_posts (
                     id, handle, post_url, media_url, media_type, caption,
-                    hashtags, posted_at, perf_score, likes, comments,
+                    hashtags, posted_at, posted_at_is_real, perf_score, likes, comments,
                     reach, is_real_metrics, sentiment, topics, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(handle, post_url) DO UPDATE SET
                     likes = excluded.likes,
                     comments = excluded.comments,
                     reach = excluded.reach,
                     is_real_metrics = excluded.is_real_metrics,
+                    posted_at = COALESCE(excluded.posted_at, scraped_posts.posted_at),
+                    posted_at_is_real = excluded.posted_at_is_real,
                     perf_score = excluded.perf_score,
                     sentiment = excluded.sentiment,
                     media_url = COALESCE(excluded.media_url, scraped_posts.media_url),
@@ -368,6 +378,7 @@ def save_profile_and_posts(
                 p.get("caption", ""),
                 json.dumps(p.get("hashtags", [])),
                 p.get("posted_at", now_iso),
+                1 if p.get("posted_at_is_real") else 0,
                 p.get("perf_score", 0.5),
                 p.get("likes", 0),
                 p.get("comments", 0),

@@ -34,6 +34,9 @@ class CreatorPersonalModel:
         self.top_keywords: List[str] = []
         self.top_hashtags: List[str] = []
         self.avg_sentiment: float = 0.0
+        self.real_timestamps_count: int = 0
+        self.timing_status: str = "insufficient_data"
+        self.timing_message: str = "Based on macro platform prior (insufficient verified creator timestamps)"
 
         # Fit personal model on historical posts
         self._fit()
@@ -43,6 +46,8 @@ class CreatorPersonalModel:
             # Fallback to general default expectations
             self.mean_engagement_rate = 3.5
             self.format_performance = {"reel": 4.5, "carousel": 3.8, "image": 2.5}
+            self.timing_status = "insufficient_data"
+            self.timing_message = "No posts available (macro platform prior active)"
             return
 
         rates = []
@@ -52,6 +57,10 @@ class CreatorPersonalModel:
         captions = []
         all_tags = []
         sentiments = []
+
+        # Count verified real timestamps
+        real_posts = [p for p in self.posts if p.get("posted_at_is_real")]
+        self.real_timestamps_count = len(real_posts)
 
         for p in self.posts:
             likes = p.get("likes", 0)
@@ -66,12 +75,14 @@ class CreatorPersonalModel:
             else:
                 format_groups["image"].append(rate)
 
-            # Timing breakdown
-            dt = parse_timestamp(p.get("posted_at"))
-            hour = dt.hour
-            day = dt.weekday()
-            hour_groups.setdefault(hour, []).append(rate)
-            day_groups.setdefault(day, []).append(rate)
+            # Timing breakdown - ONLY include if posted_at_is_real is True
+            # to strictly prevent crawler execution timestamps from masquerading as creator posting habits
+            if p.get("posted_at_is_real"):
+                dt = parse_timestamp(p.get("posted_at"))
+                hour = dt.hour
+                day = dt.weekday()
+                hour_groups.setdefault(hour, []).append(rate)
+                day_groups.setdefault(day, []).append(rate)
 
             # Caption NLP
             cap = p.get("caption") or ""
@@ -93,13 +104,34 @@ class CreatorPersonalModel:
             else:
                 self.format_performance[fmt] = self.mean_engagement_rate
 
-        # Hourly performance
-        for h, values in hour_groups.items():
-            self.hourly_performance[h] = round(float(np.mean(values)), 3)
+        # Hourly & Day performance with fallback to macro priors if insufficient data (< 3 real timestamps)
+        if self.real_timestamps_count >= 3:
+            self.timing_status = "verified"
+            self.timing_message = f"Based on {self.real_timestamps_count} verified publish timestamps"
+            for h, values in hour_groups.items():
+                self.hourly_performance[h] = round(float(np.mean(values)), 3)
+            for d, values in day_groups.items():
+                self.day_performance[d] = round(float(np.mean(values)), 3)
+        else:
+            self.timing_status = "insufficient_data"
+            self.timing_message = (
+                f"Based on macro platform prior ({self.real_timestamps_count} verified timestamps; "
+                "insufficient data for personal timing model)"
+            )
+            # Neutral macro platform distribution prior
+            base = self.mean_engagement_rate
+            for h in range(24):
+                if 17 <= h <= 21:
+                    self.hourly_performance[h] = round(base * 1.15, 3)
+                elif 11 <= h <= 14:
+                    self.hourly_performance[h] = round(base * 1.05, 3)
+                elif 1 <= h <= 6:
+                    self.hourly_performance[h] = round(base * 0.70, 3)
+                else:
+                    self.hourly_performance[h] = round(base, 3)
 
-        # Day performance
-        for d, values in day_groups.items():
-            self.day_performance[d] = round(float(np.mean(values)), 3)
+            for d in range(7):
+                self.day_performance[d] = round(base, 3)
 
         # Average sentiment
         self.avg_sentiment = float(np.mean(sentiments)) if sentiments else 0.0
@@ -181,5 +213,8 @@ class CreatorPersonalModel:
             "format_breakdown": self.format_performance,
             "top_keywords": self.top_keywords,
             "top_hashtags": self.top_hashtags,
-            "average_sentiment": round(self.avg_sentiment, 2)
+            "average_sentiment": round(self.avg_sentiment, 2),
+            "real_timestamps_count": self.real_timestamps_count,
+            "timing_status": self.timing_status,
+            "timing_message": self.timing_message
         }

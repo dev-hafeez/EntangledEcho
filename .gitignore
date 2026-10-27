@@ -43,3 +43,16 @@ pnpm-debug.log*
 
 # Supabase local
 .supabase/
+
+# SQLite databases & runtime storage
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+services/ai/data/*.db
+services/ai/data/*.db-shm
+services/ai/data/*.db-wal
+
+# Logs
+*.log
+services/ai/data/*.log

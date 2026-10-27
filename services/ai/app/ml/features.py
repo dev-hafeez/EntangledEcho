@@ -61,26 +61,35 @@ def extract_features(
     posted_at: Any,
     caption: str,
     hashtags: Optional[List[str]] = None,
-    followers: int = 1000
+    followers: int = 1000,
+    posted_at_is_real: bool = True
 ) -> Dict[str, float]:
     """
     Extracts a normalized numerical feature vector from post attributes.
+    If posted_at_is_real is False, cyclical hour/day features are zeroed out (center of unit circle)
+    to prevent the model from learning from crawler execution timestamps.
     """
     media_type_norm = (media_type or "image").lower()
-    dt = parse_timestamp(posted_at)
 
-    hour = dt.hour
-    day = dt.weekday()  # 0 = Monday, 6 = Sunday
+    if posted_at_is_real and posted_at:
+        dt = parse_timestamp(posted_at)
+        hour = dt.hour
+        day = dt.weekday()  # 0 = Monday, 6 = Sunday
 
-    # Cyclic hour encoding
-    hour_rad = 2 * math.pi * hour / 24.0
-    hour_sin = math.sin(hour_rad)
-    hour_cos = math.cos(hour_rad)
+        # Cyclic hour encoding
+        hour_rad = 2 * math.pi * hour / 24.0
+        hour_sin = math.sin(hour_rad)
+        hour_cos = math.cos(hour_rad)
 
-    # Cyclic day encoding
-    day_rad = 2 * math.pi * day / 7.0
-    day_sin = math.sin(day_rad)
-    day_cos = math.cos(day_rad)
+        # Cyclic day encoding
+        day_rad = 2 * math.pi * day / 7.0
+        day_sin = math.sin(day_rad)
+        day_cos = math.cos(day_rad)
+    else:
+        hour_sin = 0.0
+        hour_cos = 0.0
+        day_sin = 0.0
+        day_cos = 0.0
 
     clean_caption = caption or ""
     caption_length_chars = float(len(clean_caption))

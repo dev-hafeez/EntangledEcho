@@ -63,9 +63,18 @@ def compute_slot_scores_with_shrinkage(
 
     # Parse historical posts
     for p in posts:
-        posted_at = p.get("posted_at")
         score = float(p.get("perf_score") or 0.5)
+        all_scores.append(score)
 
+        # Strictly ignore unverified scrape timestamps for slot distribution
+        is_real = p.get("posted_at_is_real")
+        if is_real is None:
+            p_at = str(p.get("posted_at") or "")
+            is_real = p_at.endswith("Z") or p_at.endswith(".000Z")
+        if not is_real:
+            continue
+
+        posted_at = p.get("posted_at")
         if not posted_at:
             continue
 
@@ -85,7 +94,6 @@ def compute_slot_scores_with_shrinkage(
         slot_scores_raw[slot_key].append(score)
         day_scores[day].append(score)
         hour_scores[hour].append(score)
-        all_scores.append(score)
 
     global_mean = float(np.mean(all_scores)) if all_scores else 0.5
 
@@ -384,6 +392,13 @@ def run_qubo_optimization(
 
     t_elapsed = round((time.perf_counter() - t_start) * 1000, 2)
     is_cold_start = n_posts < 20
+    real_ts_count = sum(1 for p in posts if p.get("posted_at_is_real"))
+    timing_status = "verified" if real_ts_count >= 3 else "insufficient_data"
+    timing_message = (
+        f"Based on {real_ts_count} verified publish timestamps"
+        if real_ts_count >= 3
+        else f"Best-time suggestions based on macro platform baseline ({real_ts_count} verified timestamps; insufficient real data)"
+    )
 
     return {
         "status": "success",
@@ -395,6 +410,9 @@ def run_qubo_optimization(
         "confidence_note": "Confidence reflects stability of the schedule under bootstrap data resampling (FR-20).",
         "cold_start": is_cold_start,
         "cold_start_badge": "Prior-Calibrated Benchmark (< 20 historical posts)" if is_cold_start else "Fully Data-Fitted",
+        "real_timestamps_count": real_ts_count,
+        "timing_status": timing_status,
+        "timing_message": timing_message,
         "qubo_stats": {
             "variables_count": len(bqm.variables),
             "interactions_count": len(bqm.quadratic),
