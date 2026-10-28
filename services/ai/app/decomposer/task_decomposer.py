@@ -142,6 +142,41 @@ Do not include markdown tags, return pure JSON.
             )
         """)
 
+        # 1. Save to Supabase
+        from app.db import get_supabase
+        sp = get_supabase()
+        if sp:
+            try:
+                sp.table("content_strategies").upsert({
+                    "id": strategy_id,
+                    "handle": clean_handle,
+                    "goal": goal,
+                    "platform": platform,
+                    "horizon_days": horizon_days,
+                    "created_at": now_iso
+                }, on_conflict="id").execute()
+
+                sp_tasks = []
+                for t in tasks:
+                    sp_tasks.append({
+                        "id": t["id"],
+                        "strategy_id": strategy_id,
+                        "handle": clean_handle,
+                        "title": t["title"],
+                        "description": t["description"],
+                        "media_type": t["media_type"],
+                        "due_date": t["due_date"],
+                        "priority": t["priority"],
+                        "status": t["status"],
+                        "created_at": now_iso
+                    })
+                if sp_tasks:
+                    sp.table("tasks").upsert(sp_tasks, on_conflict="id").execute()
+                logger.info(f"Saved strategy {strategy_id} and {len(tasks)} tasks to Supabase")
+            except Exception as e:
+                logger.error(f"Error saving strategy/tasks to Supabase: {e}")
+
+        # 2. Save to SQLite
         cursor.execute("""
             INSERT INTO content_strategies (id, handle, goal, platform, horizon_days, created_at)
             VALUES (?, ?, ?, ?, ?, ?)

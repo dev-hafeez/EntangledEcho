@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8001";
 
 export async function GET(req: NextRequest) {
   try {

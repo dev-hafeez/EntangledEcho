@@ -708,7 +708,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
                 <div>
                   <div className="font-semibold text-slate-900">Supabase Auth & GoTrue</div>
-                  <div className="text-slate-500 text-[11px]">gehibgozoaenzsylojxq.supabase.co</div>
+                  <div className="text-slate-500 text-[11px]">pndypqsppmgumamaeuef.supabase.co</div>
                 </div>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold text-[10px]">
                   Online (200 OK)

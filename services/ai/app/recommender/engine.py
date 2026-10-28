@@ -142,9 +142,26 @@ def is_usable_real_caption(text: str) -> bool:
 
 
 def get_creator_preferences(handle: str) -> Dict[str, Any]:
-    """Retrieves learned creator preference weights from database."""
-    from app.db import get_connection
+    """Retrieves learned creator preference weights from database (Supabase first, SQLite fallback)."""
+    from app.db import get_connection, get_supabase
     clean_handle = handle.strip().lstrip("@").lower()
+
+    # 1. Supabase Cloud lookup
+    sp = get_supabase()
+    if sp:
+        try:
+            res = sp.table("creator_preferences").select("*").ilike("handle", clean_handle).limit(1).execute()
+            if res.data and len(res.data) > 0:
+                row = res.data[0]
+                return {
+                    "preferred_media_types": row.get("preferred_media_types") or {},
+                    "preferred_hashtag_clusters": row.get("preferred_hashtag_clusters") or {},
+                    "preferred_tone": row.get("preferred_tone") or "ENGAGING"
+                }
+        except Exception as e:
+            logger.warning(f"Error fetching creator preferences from Supabase: {e}")
+
+    # 2. SQLite fallback
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM creator_preferences WHERE LOWER(handle) = ?", (clean_handle,))
@@ -169,46 +186,83 @@ def update_creator_feedback(
 ) -> Dict[str, Any]:
     """
     Updates recommendation status and adjusts preference weights (FR-24 feedback learning).
+    Persists to both Supabase and SQLite.
     """
-    from app.db import get_connection
+    from app.db import get_connection, get_supabase
     clean_handle = handle.strip().lstrip("@").lower()
     now_iso = datetime.now(timezone.utc).isoformat()
 
+    prefs = get_creator_preferences(clean_handle)
+    media_weights = prefs["preferred_media_types"]
+    hashtag_weights = prefs["preferred_hashtag_clusters"]
+
+    # 1. Update Supabase
+    sp = get_supabase()
+    if sp:
+        try:
+            sp.table("recommendations").update({
+                "accepted": 1 if accepted else 0,
+                "feedback": feedback_text or ""
+            }).eq("id", recommendation_id).execute()
+
+            # Fetch rec content to adjust weights
+            rec_res = sp.table("recommendations").select("type,content").eq("id", recommendation_id).limit(1).execute()
+            if rec_res.data and len(rec_res.data) > 0:
+                rec_row = rec_res.data[0]
+                rec_content = rec_row.get("content")
+                if isinstance(rec_content, str):
+                    try:
+                        rec_content = json.loads(rec_content)
+                    except Exception:
+                        pass
+                rec_type = rec_row.get("type")
+                weight_delta = 1.0 if accepted else -0.5
+
+                if rec_type == "content_type" and isinstance(rec_content, dict):
+                    top_fmt = rec_content.get("top_format", "REEL")
+                    media_weights[top_fmt] = round(media_weights.get(top_fmt, 1.0) + weight_delta, 2)
+                elif rec_type == "caption" and isinstance(rec_content, dict):
+                    for tag in rec_content.get("hashtags", [])[:3]:
+                        hashtag_weights[tag] = round(hashtag_weights.get(tag, 1.0) + weight_delta, 2)
+
+            sp.table("creator_preferences").upsert({
+                "handle": clean_handle,
+                "preferred_media_types": media_weights,
+                "preferred_hashtag_clusters": hashtag_weights,
+                "preferred_tone": prefs.get("preferred_tone", "ENGAGING"),
+                "updated_at": now_iso
+            }, on_conflict="handle").execute()
+            logger.info(f"Updated feedback & preferences in Supabase for @{clean_handle}")
+        except Exception as e:
+            logger.error(f"Error updating feedback in Supabase: {e}")
+
+    # 2. Update SQLite mirror
     with get_connection() as conn:
         cursor = conn.cursor()
-        # 1. Update recommendations table
         cursor.execute("""
             UPDATE recommendations
             SET accepted = ?, feedback = ?
             WHERE id = ?
         """, (1 if accepted else 0, feedback_text or "", recommendation_id))
 
-        # 2. Fetch the recommendation content to adjust preference weights
         cursor.execute("SELECT type, content FROM recommendations WHERE id = ?", (recommendation_id,))
         rec_row = cursor.fetchone()
-
-        prefs = get_creator_preferences(clean_handle)
-        media_weights = prefs["preferred_media_types"]
-        hashtag_weights = prefs["preferred_hashtag_clusters"]
 
         if rec_row and rec_row["content"]:
             try:
                 rec_content = json.loads(rec_row["content"])
                 rec_type = rec_row["type"]
-
                 weight_delta = 1.0 if accepted else -0.5
 
                 if rec_type == "content_type":
                     top_fmt = rec_content.get("top_format", "REEL")
                     media_weights[top_fmt] = round(media_weights.get(top_fmt, 1.0) + weight_delta, 2)
-
                 elif rec_type == "caption":
                     for tag in rec_content.get("hashtags", [])[:3]:
                         hashtag_weights[tag] = round(hashtag_weights.get(tag, 1.0) + weight_delta, 2)
             except Exception as e:
                 logger.warning(f"Error parsing rec content for feedback: {e}")
 
-        # 3. Upsert preferences
         cursor.execute("""
             INSERT INTO creator_preferences (handle, preferred_media_types, preferred_hashtag_clusters, preferred_tone, updated_at)
             VALUES (?, ?, ?, ?, ?)
@@ -663,8 +717,28 @@ async def run_ai_recommendation_engine(
         }
         confidence_score = ct_ranking["ranked_formats"][0]["confidence_score"] if ct_ranking["ranked_formats"] else 75.0
 
-    # 4. Store recommendation in database (SRDS Step 6)
-    from app.db import get_connection
+    # 4. Store recommendation in database (SRDS Step 6) - Supabase and SQLite
+    from app.db import get_connection, get_supabase
+
+    # Save to Supabase
+    sp = get_supabase()
+    if sp:
+        try:
+            sp.table("recommendations").upsert({
+                "id": rec_id,
+                "handle": clean_handle,
+                "type": recommendation_type,
+                "content": json.dumps(result_payload),
+                "confidence_score": confidence_score,
+                "accepted": None,
+                "feedback": None,
+                "created_at": now_iso
+            }, on_conflict="id").execute()
+            logger.info(f"Saved recommendation {rec_id} to Supabase")
+        except Exception as e:
+            logger.error(f"Error saving recommendation to Supabase: {e}")
+
+    # Save to SQLite
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
